@@ -547,18 +547,6 @@ class MainActivity : FlutterActivity() {
 		setIntent(intent)
 	}
 
-	override fun onTaskRemoved(rootIntent: Intent) {
-		super.onTaskRemoved(rootIntent)
-		// Try to immediately restart the launcher activity if the task is removed
-		try {
-			val restartIntent = Intent(applicationContext, MainActivity::class.java)
-			restartIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-			applicationContext.startActivity(restartIntent)
-		} catch (e: Exception) {
-			// ignore
-		}
-	}
-
 	override fun onBackPressed() {
 		// Do nothing to prevent leaving the launcher via back button
 	}
