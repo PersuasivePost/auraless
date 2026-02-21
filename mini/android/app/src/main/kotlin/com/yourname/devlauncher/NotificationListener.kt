@@ -1,4 +1,4 @@
-package com.yourname.devlauncher
+package com.example.mini
 
 import android.content.Context
 import android.service.notification.NotificationListenerService

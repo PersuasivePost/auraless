@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/terminal_home_screen.dart';
-import 'providers/lifecycle_provider.dart';
+import 'screens/setup_wizard.dart';
 import 'core/hive_service.dart';
+import 'providers/lifecycle_provider.dart';
 import 'core/native_channel_service.dart';
 import 'providers/usage_stats_provider.dart';
 
@@ -67,7 +68,11 @@ class _LauncherAppState extends State<LauncherApp> with WidgetsBindingObserver {
       child: MaterialApp(
         title: 'Mini',
         theme: ThemeData.dark(),
-        home: const MainScreen(),
+        home:
+            HiveService.getSetting('isSetupComplete', defaultValue: false) ==
+                true
+            ? const MainScreen()
+            : const SetupWizard(),
       ),
     );
   }

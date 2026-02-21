@@ -104,6 +104,10 @@ class NativeChannelService {
     ).invokeMethod('openAccessibilitySettings');
   }
 
+  Future<void> openHomePicker() async {
+    await _appChannel.invokeMethod('openHomePicker');
+  }
+
   Future<void> setMindfulDelaySeconds(int seconds) async {
     await MethodChannel(
       'blocked_apps_channel',

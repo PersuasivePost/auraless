@@ -342,7 +342,7 @@ class CommandParser {
           historyProvider.addOutput('Grayscale enabled');
         } else {
           historyProvider.addOutput(
-            'Permission denied. Run: adb shell pm grant com.yourname.devlauncher android.permission.WRITE_SECURE_SETTINGS',
+            'Permission denied. Run: adb shell pm grant <your.app.package> android.permission.WRITE_SECURE_SETTINGS',
           );
         }
         return;
@@ -353,7 +353,7 @@ class CommandParser {
           historyProvider.addOutput('Grayscale disabled');
         } else {
           historyProvider.addOutput(
-            'Permission denied. Run: adb shell pm grant com.yourname.devlauncher android.permission.WRITE_SECURE_SETTINGS',
+            'Permission denied. Run: adb shell pm grant <your.app.package> android.permission.WRITE_SECURE_SETTINGS',
           );
         }
         return;

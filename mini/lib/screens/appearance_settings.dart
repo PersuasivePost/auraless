@@ -33,7 +33,7 @@ class _AppearanceSettingsState extends State<AppearanceSettings> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Permission denied. Run: adb shell pm grant com.yourname.devlauncher android.permission.WRITE_SECURE_SETTINGS',
+              'Permission denied. Run: adb shell pm grant <your.app.package> android.permission.WRITE_SECURE_SETTINGS',
             ),
           ),
         );

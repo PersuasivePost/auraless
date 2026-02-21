@@ -1,4 +1,4 @@
-package com.yourname.devlauncher
+package com.example.mini
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo

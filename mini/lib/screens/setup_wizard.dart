@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'colors.dart';
-import 'package:mini/core/native_channel_service.dart';
+import 'setup_pages/welcome_page.dart';
+import 'setup_pages/set_default_page.dart';
+import 'setup_pages/usage_access_page.dart';
+import 'setup_pages/accessibility_page.dart';
+import 'setup_pages/notification_access_page.dart';
+import 'setup_pages/adb_grayscale_page.dart';
+import 'setup_pages/contacts_page.dart';
+import 'setup_pages/complete_page.dart';
+import '../core/hive_service.dart';
+import '../screens/terminal_home_screen.dart';
 
 class SetupWizard extends StatefulWidget {
   const SetupWizard({super.key});
@@ -12,191 +22,99 @@ class SetupWizard extends StatefulWidget {
 class _SetupWizardState extends State<SetupWizard> {
   final PageController _controller = PageController();
   final List<Widget> _pages = [];
+  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
     _pages.addAll([
-      _buildPage('Welcome', 'Intro to mini and philosophy.'),
-      _buildPage('Set Default', 'Make mini your default launcher.'),
-      _buildPage('Usage Access', 'Optional: enable usage access for digests.'),
-      _buildPage('Accessibility', 'Enable accessibility features if needed.'),
-      _buildNotificationAccessPage(),
-      _buildPage('ADB Grayscale', 'Enable ADB grayscale demo (optional).'),
-      _buildPage('Contacts', 'Optional: import contacts or shortcuts.'),
-      _buildPage('Complete', 'Finish setup and go to terminal.'),
+      WelcomePage(
+        onNext: () => _controller.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        ),
+      ),
+      SetDefaultPage(
+        onNext: () => _controller.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        ),
+      ),
+      UsageAccessPage(
+        onNext: () => _controller.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        ),
+      ),
+      AccessibilityPage(
+        onNext: () => _controller.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        ),
+      ),
+      NotificationAccessPage(
+        onNext: () => _controller.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        ),
+      ),
+      AdbGrayscalePage(
+        onNext: () => _controller.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        ),
+      ),
+      ContactsPage(
+        onNext: () => _controller.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        ),
+      ),
+      CompletePage(
+        onFinish: () async {
+          await HiveService.setSetting('isSetupComplete', true);
+          if (!mounted) return;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const TerminalHomeScreen()),
+          );
+        },
+      ),
     ]);
   }
 
-  Widget _buildNotificationAccessPage() {
-    final native = NativeChannelService();
-    bool isEnabled = false;
-
-    return StatefulBuilder(
-      builder: (context, setState) {
-        Future<void> check() async {
-          try {
-            final ok = await native.isNotificationListenerEnabled();
-            setState(() => isEnabled = ok);
-          } catch (_) {
-            setState(() => isEnabled = false);
-          }
-        }
-
-        return Container(
-          color: kBackgroundColor,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Notification Access',
-                style: TextStyle(
-                  color: kPrimaryGreen,
-                  fontSize: 28,
-                  fontFamily: 'monospace',
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Allow notification access so mini can capture digests (optional).',
-                style: TextStyle(color: kOutputGreen, fontFamily: 'monospace'),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kAccentGreen,
-                    ),
-                    onPressed: () async {
-                      await native.openNotificationListenerSettings();
-                    },
-                    child: const Text('Open Settings'),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: kDimGreen),
-                    onPressed: () async {
-                      await check();
-                    },
-                    child: const Text('Check again'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                isEnabled ? 'Notification listener enabled' : 'Not enabled',
-                style: TextStyle(color: kPrimaryGreen),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: kDimGreen),
-                    onPressed: () {
-                      final previous = _controller.page?.toInt() ?? 0;
-                      if (previous > 0) {
-                        _controller.previousPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      }
-                    },
-                    child: const Text('Back'),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kAccentGreen,
-                    ),
-                    onPressed: isEnabled
-                        ? () {
-                            final next = _controller.page?.toInt() ?? 0;
-                            if (next < 7) {
-                              _controller.nextPage(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut,
-                              );
-                            }
-                          }
-                        : null,
-                    child: const Text('Next'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPage(String title, String body) {
-    return Container(
-      color: kBackgroundColor,
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: kPrimaryGreen,
-              fontSize: 28,
-              fontFamily: 'monospace',
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            body,
-            style: TextStyle(color: kOutputGreen, fontFamily: 'monospace'),
-          ),
-          const SizedBox(height: 24),
-          // placeholder controls
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: kDimGreen),
-                onPressed: () {
-                  final previous = _controller.page?.toInt() ?? 0;
-                  if (previous > 0) {
-                    _controller.previousPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  }
-                },
-                child: const Text('Back'),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: kAccentGreen),
-                onPressed: () {
-                  final next = _controller.page?.toInt() ?? 0;
-                  if (next < 7) {
-                    _controller.nextPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  }
-                },
-                child: const Text('Next'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBackgroundColor,
-      body: SafeArea(
-        child: PageView(controller: _controller, children: _pages),
+    return WillPopScope(
+      onWillPop: () async {
+        // If not on the first page, go back to previous page
+        if (_currentPage > 0) {
+          _controller.previousPage(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          return false; // we've handled the pop
+        }
+        // On the first page, exit the app
+        try {
+          SystemNavigator.pop();
+        } catch (_) {}
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: kBackgroundColor,
+        body: SafeArea(
+          child: PageView(
+            controller: _controller,
+            onPageChanged: (idx) => setState(() => _currentPage = idx),
+            children: _pages,
+          ),
+        ),
       ),
     );
   }

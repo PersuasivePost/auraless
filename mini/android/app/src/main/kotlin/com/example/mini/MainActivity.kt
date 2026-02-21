@@ -6,6 +6,10 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
+import android.content.ComponentName
+import android.view.accessibility.AccessibilityManager
+import android.accessibilityservice.AccessibilityServiceInfo
+import androidx.core.app.NotificationManagerCompat
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
@@ -41,6 +45,17 @@ class MainActivity : FlutterActivity() {
 					try {
 						val apps = getInstalledApps()
 						result.success(apps)
+					} catch (e: Exception) {
+						result.error("ERROR", e.localizedMessage, null)
+					}
+				}
+				"openHomePicker" -> {
+					try {
+						val intent = Intent(Intent.ACTION_MAIN)
+						intent.addCategory(Intent.CATEGORY_HOME)
+						intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+						startActivity(intent)
+						result.success(null)
 					} catch (e: Exception) {
 						result.error("ERROR", e.localizedMessage, null)
 					}
@@ -180,6 +195,49 @@ class MainActivity : FlutterActivity() {
 							result.error("INVALID_ARGS", "packageName missing", null)
 						}
 					}
+
+				// Accessibility check channel
+				MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "accessibility_check_channel").setMethodCallHandler { call, result ->
+					when (call.method) {
+								"isAccessibilityServiceEnabled" -> {
+									try {
+										val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+										val list = am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+										// Be flexible: match by declared service class name or package + class
+										val present = list.any { si ->
+											val ri = si.resolveInfo ?: return@any false
+											val pkg = ri.serviceInfo.packageName ?: ""
+											val name = ri.serviceInfo.name ?: ""
+											// Match if the class name matches our listener class or the package matches this app
+											name.endsWith("MindfulAccessibilityService") || pkg == applicationContext.packageName && name.contains("MindfulAccessibilityService")
+										}
+										result.success(present)
+									} catch (e: Exception) {
+										result.error("ERROR", e.localizedMessage, null)
+									}
+								}
+						else -> result.notImplemented()
+					}
+				}
+
+				// Notification listener check channel
+				MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "notification_listener_check_channel").setMethodCallHandler { call, result ->
+					when (call.method) {
+						"isNotificationListenerEnabled" -> {
+								try {
+									// Check via NotificationManagerCompat for enabled packages
+									val enabledViaCompat = NotificationManagerCompat.getEnabledListenerPackages(this).contains(applicationContext.packageName)
+									// Also check enabled_notification_listeners secure setting as a fallback
+									val enabledSetting = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: ""
+									val presentInSettings = enabledSetting.contains(applicationContext.packageName)
+									result.success(enabledViaCompat || presentInSettings)
+								} catch (e: Exception) {
+									result.error("ERROR", e.localizedMessage, null)
+								}
+							}
+						else -> result.notImplemented()
+					}
+				}
 					"removeBlockedApp" -> {
 						val pkg = call.arguments as? String
 						if (pkg != null) {
@@ -200,11 +258,11 @@ class MainActivity : FlutterActivity() {
 						result.success(list)
 					}
 					"isAccessibilityServiceEnabled" -> {
-						// rudimentary check: verify if service is enabled in secure settings
+						// Check enabled accessibility services string for our service by package or class name
 						try {
 							val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
-							val serviceName = "com.yourname.devlauncher/.MindfulAccessibilityService"
-							val present = enabled?.contains(serviceName) == true
+							val serviceComponent = "${applicationContext.packageName}/.MindfulAccessibilityService"
+							val present = enabled?.contains(serviceComponent) == true || enabled?.contains("MindfulAccessibilityService") == true
 							result.success(present)
 						} catch (e: Exception) {
 							result.error("ERROR", e.localizedMessage, null)
@@ -306,7 +364,7 @@ class MainActivity : FlutterActivity() {
 							"isNotificationListenerEnabled" -> {
 								try {
 									val enabled = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: ""
-									val present = enabled.contains("com.yourname.devlauncher")
+									val present = enabled.contains(applicationContext.packageName)
 									result.success(present)
 								} catch (e: Exception) {
 									result.error("ERROR", e.localizedMessage, null)
