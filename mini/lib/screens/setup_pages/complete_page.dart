@@ -38,7 +38,7 @@ class _CompletePageState extends State<CompletePage> {
         (_) => false,
       );
       final gray = await _native.isGrayscaleEnabled().catchError((_) => false);
-      final blocked = await HiveService.getBlockedApps();
+      final blocked = HiveService.getBlockedApps();
       if (!mounted) return;
       setState(() {
         _usage = usage;

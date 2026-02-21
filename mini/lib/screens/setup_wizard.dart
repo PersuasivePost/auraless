@@ -90,6 +90,7 @@ class _SetupWizardState extends State<SetupWizard> {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: deprecated_member_use - WillPopScope is deprecated after v3.12.0-1.0.pre
     return WillPopScope(
       onWillPop: () async {
         // If not on the first page, go back to previous page

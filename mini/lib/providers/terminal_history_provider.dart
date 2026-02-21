@@ -13,6 +13,7 @@ class TerminalHistoryProvider extends ChangeNotifier {
   final List<HistoryEntry> entries = [];
   final List<String> commandHistory = [];
   int historyIndex = -1; // -1 means no selection
+  DateTime? _lastSessionLine;
 
   void addCommand(String cmd) {
     entries.add(HistoryEntry(type: 'command', text: cmd));
@@ -33,6 +34,25 @@ class TerminalHistoryProvider extends ChangeNotifier {
 
   void clear() {
     entries.clear();
+    notifyListeners();
+  }
+
+  /// Adds a session-start line to the terminal, debounced to avoid duplicates
+  void addSessionStartLine() {
+    final now = DateTime.now();
+    if (_lastSessionLine != null) {
+      final diff = now.difference(_lastSessionLine!);
+      if (diff.inSeconds < 5) {
+        // ignore if recent
+        return;
+      }
+    }
+    final hh = now.hour.toString().padLeft(2, '0');
+    final mm = now.minute.toString().padLeft(2, '0');
+    entries.add(
+      HistoryEntry(type: 'output', text: '--- Session started at $hh:$mm ---'),
+    );
+    _lastSessionLine = now;
     notifyListeners();
   }
 

@@ -7,19 +7,11 @@ import 'package:permission_handler/permission_handler.dart';
 
 // small struct for tracked permissions
 class _PermissionState {
-  bool usage;
-  bool accessibility;
-  bool notification;
-  bool contacts;
-  _PermissionState({
-    bool usage = false,
-    bool accessibility = false,
-    bool notification = false,
-    bool contacts = false,
-  }) : usage = usage,
-       accessibility = accessibility,
-       notification = notification,
-       contacts = contacts;
+  bool usage = false;
+  bool accessibility = false;
+  bool notification = false;
+  bool contacts = false;
+  _PermissionState();
 }
 
 class LifecycleProvider extends ChangeNotifier {
@@ -27,9 +19,13 @@ class LifecycleProvider extends ChangeNotifier {
   DateTime? _lastResume;
   final NativeChannelService _native = NativeChannelService();
   Timer? _timer;
-  _PermissionState _permState = _PermissionState();
+  final _PermissionState _permState = _PermissionState();
+  TerminalHistoryProvider? _history;
+  bool _hadInitialResume = false;
 
   void startPeriodicChecks(TerminalHistoryProvider history) {
+    // keep a reference to history for session start lines
+    _history = history;
     // run immediately and then every 30s
     _checkPermissions(history);
     _timer?.cancel();
@@ -102,8 +98,15 @@ class LifecycleProvider extends ChangeNotifier {
     try {
       // notify listeners first
       notifyListeners();
-      // Attempt to get the terminal history provider from current context via a callback in main app
+      // On subsequent resumes (not the very first), add a session-start line
+      if (_hadInitialResume && _history != null) {
+        try {
+          _history!.addSessionStartLine();
+        } catch (_) {}
+      }
     } catch (_) {}
+    // flip the initial resume flag after first invocation
+    if (!_hadInitialResume) _hadInitialResume = true;
     notifyListeners();
   }
 

@@ -47,6 +47,7 @@ class _AdbGrayscalePageState extends State<AdbGrayscalePage> {
 
   Future<void> _test() async {
     setState(() => _testing = true);
+    final scaffoldMessenger = ScaffoldMessenger.maybeOf(context);
     try {
       final ok = await _native.enableGrayscale().catchError((_) => false);
       if (!mounted) return;
@@ -54,7 +55,7 @@ class _AdbGrayscalePageState extends State<AdbGrayscalePage> {
         // Permission not granted
         showDialog(
           context: context,
-          builder: (_) => AlertDialog(
+          builder: (dialogContext) => AlertDialog(
             title: const Text('Permission required'),
             content: SelectableText(
               'To enable grayscale this app needs WRITE_SECURE_SETTINGS. Run the following on your computer:\n\n$_adbCommand',
@@ -63,12 +64,12 @@ class _AdbGrayscalePageState extends State<AdbGrayscalePage> {
               TextButton(
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: _adbCommand));
-                  if (mounted) Navigator.of(context).pop();
+                  if (dialogContext.mounted) Navigator.of(dialogContext).pop();
                 },
                 child: const Text('Copy'),
               ),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('OK'),
               ),
             ],
@@ -79,9 +80,9 @@ class _AdbGrayscalePageState extends State<AdbGrayscalePage> {
           _success = false;
         });
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Grayscale enabled')));
+        scaffoldMessenger?.showSnackBar(
+          const SnackBar(content: Text('Grayscale enabled')),
+        );
         setState(() {
           _granted = true;
           _success = true;
@@ -96,12 +97,12 @@ class _AdbGrayscalePageState extends State<AdbGrayscalePage> {
       if (mounted) {
         showDialog(
           context: context,
-          builder: (_) => AlertDialog(
+          builder: (dialogContext) => AlertDialog(
             title: const Text('Error'),
             content: Text('Failed to toggle grayscale: ${e.toString()}'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('OK'),
               ),
             ],
@@ -156,9 +157,10 @@ class _AdbGrayscalePageState extends State<AdbGrayscalePage> {
                   tooltip: 'Copy',
                   icon: const Icon(Icons.copy),
                   onPressed: () async {
+                    final messenger = ScaffoldMessenger.maybeOf(context);
                     await Clipboard.setData(ClipboardData(text: _adbCommand));
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger?.showSnackBar(
                       const SnackBar(content: Text('ADB command copied')),
                     );
                   },

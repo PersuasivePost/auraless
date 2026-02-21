@@ -6,6 +6,7 @@ import 'package:mini/screens/setup_wizard.dart';
 // ...existing code...
 import 'package:mini/screens/usage_stats_screen.dart';
 import 'package:mini/providers/usage_stats_provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class CommandParser {
   final BuildContext context;
@@ -85,6 +86,9 @@ class CommandParser {
         case 'battery':
           await _cmdBattery(args);
           break;
+        case 'about':
+          await _cmdAbout();
+          break;
         case 'battery_optimization':
           await _cmdBattery(args);
           break;
@@ -95,7 +99,9 @@ class CommandParser {
           historyProvider.clear();
           break;
         default:
-          historyProvider.addError('Unknown command: $cmd');
+          historyProvider.addError(
+            'Unknown command: $cmd. Usage: help. Example: help',
+          );
       }
     } catch (e) {
       historyProvider.addError('Error: ${e.toString()}');
@@ -119,6 +125,7 @@ class CommandParser {
       'alias - manage aliases',
       'settings - open settings',
       'battery - check battery optimization state (use "battery open" to open settings)',
+      'about - show app information (version, repo, contributors)',
       'battery_optimization - alias for battery',
       'clear - clear terminal',
     ];
@@ -129,7 +136,9 @@ class CommandParser {
 
   Future<void> _cmdOpen(List<String> args) async {
     if (args.isEmpty) {
-      historyProvider.addError('Usage: open <app name or package>');
+      historyProvider.addError(
+        'Missing app name. Usage: open <app name or package>. Example: open instagram',
+      );
       return;
     }
     final query = args.join(' ');
@@ -143,19 +152,25 @@ class CommandParser {
       return name.contains(lower) || pkg.contains(lower);
     }, orElse: () => {});
     if (match.isEmpty) {
-      historyProvider.addError('No app matching "$query"');
+      historyProvider.addError(
+        'No app matching "$query". Usage: open <app name or package>. Example: open instagram',
+      );
       return;
     }
     final pkgName = match['packageName'] as String?;
     if (pkgName == null) {
-      historyProvider.addError('No packageName for matched app');
+      historyProvider.addError(
+        'Unable to determine package name for matched app. Usage: open <app name or package>. Example: open instagram',
+      );
       return;
     }
     final ok = await native.launchApp(pkgName);
     if (ok) {
       historyProvider.addOutput('Launched ${match['name']}');
     } else {
-      historyProvider.addError('Failed to launch ${match['name']}');
+      historyProvider.addError(
+        'Failed to launch ${match['name']}. Usage: open <app name or package>. Example: open instagram',
+      );
     }
   }
 
@@ -218,7 +233,9 @@ class CommandParser {
       historyProvider.addOutput('Alias removed: $name');
       return;
     }
-    historyProvider.addError('Usage: alias [add|remove] <name> <command>');
+    historyProvider.addError(
+      'Invalid alias command. Usage: alias [add|remove] <name> <command>. Example: alias add g "open com.example.app"',
+    );
   }
 
   void _cmdSettings() {
@@ -246,7 +263,9 @@ class CommandParser {
 
   Future<void> _cmdLock(List<String> args) async {
     if (args.isEmpty) {
-      historyProvider.addError('Invalid usage. Usage: lock <app> [minutes]');
+      historyProvider.addError(
+        'Invalid usage. Usage: lock <app> [minutes]. Example: lock instagram 30',
+      );
       return;
     }
     final query = args[0];
@@ -263,12 +282,16 @@ class CommandParser {
       return name.contains(lower) || pkg.contains(lower);
     }, orElse: () => {});
     if (match.isEmpty) {
-      historyProvider.addError('No app matching "$query"');
+      historyProvider.addError(
+        'No app matching "$query". Usage: lock <app> [minutes]. Example: lock instagram 30',
+      );
       return;
     }
     final pkgName = match['packageName'] as String?;
     if (pkgName == null) {
-      historyProvider.addError('No packageName for matched app');
+      historyProvider.addError(
+        'Unable to determine package name for matched app. Usage: lock <app> [minutes]. Example: lock instagram 30',
+      );
       return;
     }
 
@@ -294,7 +317,37 @@ class CommandParser {
         historyProvider.addOutput('Blocked ${match['name']} ($pkgName)');
       }
     } catch (e) {
-      historyProvider.addError('Failed to block $pkgName: ${e.toString()}');
+      historyProvider.addError(
+        'Failed to block $pkgName: ${e.toString()}. Usage: lock <app> [minutes]. Example: lock instagram 30',
+      );
+    }
+  }
+
+  Future<void> _cmdAbout() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final appName = info.appName;
+      final version =
+          info.version +
+          (info.buildNumber.isNotEmpty ? '+${info.buildNumber}' : '');
+
+      // Build date can be hardcoded or injected via build; using a conservative hardcoded value placeholder.
+      const buildDate = '2026-02-21';
+      const repo = 'https://github.com/PersuasivePost/minimalistic-mobile';
+      const contributors = 'GitHub Copilot';
+
+      historyProvider.addOutput('');
+      historyProvider.addOutput('=== About ===');
+      historyProvider.addOutput('App: $appName');
+      historyProvider.addOutput('Version: $version');
+      historyProvider.addOutput('Build date: $buildDate');
+      historyProvider.addOutput('Repository: $repo');
+      historyProvider.addOutput('Contributors: $contributors');
+      historyProvider.addOutput('============');
+    } catch (e) {
+      historyProvider.addError(
+        'Failed to read package info: ${e.toString()}. Usage: about. Example: about',
+      );
     }
   }
 
@@ -312,7 +365,7 @@ class CommandParser {
         }
       } catch (e) {
         historyProvider.addError(
-          'Failed to fetch blocked apps: ${e.toString()}',
+          'Failed to fetch blocked apps: ${e.toString()}. Usage: unlock [app]. Example: unlock instagram',
         );
       }
       return;
@@ -336,7 +389,9 @@ class CommandParser {
     }
 
     if (pkgName == null) {
-      historyProvider.addError('No packageName for matched app');
+      historyProvider.addError(
+        'Unable to determine package name for matched app. Usage: unlock <app|package>. Example: unlock com.instagram.android',
+      );
       return;
     }
 
@@ -344,7 +399,9 @@ class CommandParser {
       await native.removeBlockedApp(pkgName);
       historyProvider.addOutput('Unblocked $pkgName');
     } catch (e) {
-      historyProvider.addError('Failed to unblock $pkgName: ${e.toString()}');
+      historyProvider.addError(
+        'Failed to unblock $pkgName: ${e.toString()}. Usage: unlock <app|package>. Example: unlock instagram',
+      );
     }
   }
 
@@ -378,9 +435,13 @@ class CommandParser {
         }
         return;
       }
-      historyProvider.addError('Unknown mode: $mode. Use on|off');
+      historyProvider.addError(
+        'Unknown mode: $mode. Usage: grayscale on|off. Example: grayscale on',
+      );
     } catch (e) {
-      historyProvider.addError('Error toggling grayscale: ${e.toString()}');
+      historyProvider.addError(
+        'Error toggling grayscale: ${e.toString()}. Usage: grayscale on|off. Example: grayscale on',
+      );
     }
   }
 
@@ -405,14 +466,16 @@ class CommandParser {
       }
     } catch (e) {
       historyProvider.addError(
-        'Failed to fetch notifications: ${e.toString()}',
+        'Failed to fetch notifications: ${e.toString()}. Usage: notifications. Example: notifications',
       );
     }
   }
 
   Future<void> _cmdEssential(List<String> args) async {
     if (args.isEmpty) {
-      historyProvider.addError('Usage: essential [add|remove|list] <app>');
+      historyProvider.addError(
+        'Invalid usage. Usage: essential [add|remove|list] <app>. Example: essential add com.example.app',
+      );
       return;
     }
     final sub = args[0];
@@ -427,12 +490,16 @@ class CommandParser {
           }
         }
       } catch (e) {
-        historyProvider.addError('Failed to fetch essentials: ${e.toString()}');
+        historyProvider.addError(
+          'Failed to fetch essentials: ${e.toString()}. Usage: essential list. Example: essential list',
+        );
       }
       return;
     }
     if (args.length < 2) {
-      historyProvider.addError('Usage: essential [add|remove|list] <app>');
+      historyProvider.addError(
+        'Invalid usage. Usage: essential [add|remove|list] <app>. Example: essential add instagram',
+      );
       return;
     }
     final app = args.sublist(1).join(' ');
@@ -456,7 +523,9 @@ class CommandParser {
         await native.removeEssentialPackage(pkgName);
         historyProvider.addOutput('Removed essential $pkgName');
       } else {
-        historyProvider.addError('Unknown subcommand: $sub');
+        historyProvider.addError(
+          'Unknown subcommand: $sub. Usage: essential [add|remove|list] <app>. Example: essential add instagram',
+        );
       }
     } catch (e) {
       historyProvider.addError(
@@ -483,7 +552,9 @@ class CommandParser {
       historyProvider.addOutput('Focus mode disabled.');
       return;
     }
-    historyProvider.addError('Unknown mode: $mode. Use on|off');
+    historyProvider.addError(
+      'Unknown mode: $mode. Usage: focus on|off. Example: focus on',
+    );
   }
 
   Future<void> _cmdStats(List<String> args) async {
@@ -499,7 +570,9 @@ class CommandParser {
         try {
           day = DateTime.parse(a);
         } catch (e) {
-          historyProvider.addError('Invalid date: $a');
+          historyProvider.addError(
+            'Invalid date: $a. Usage: stats [today|yesterday|yyyy-mm-dd]. Example: stats 2026-02-20',
+          );
           return;
         }
       }
@@ -570,7 +643,9 @@ class CommandParser {
         'Run: battery open   to open battery optimization settings',
       );
     } catch (e) {
-      historyProvider.addError('Battery check failed: ${e.toString()}');
+      historyProvider.addError(
+        'Battery check failed: ${e.toString()}. Usage: battery. Example: battery open',
+      );
     }
   }
 }

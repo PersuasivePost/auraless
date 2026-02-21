@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:hive/hive.dart';
 
 import 'package:mini/constants/colors.dart';
 import 'package:mini/features/terminal/widgets/system_info_panel.dart';
@@ -104,6 +105,26 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
       final provider = Provider.of<TerminalHistoryProvider>(context);
       provider.addListener(_onHistoryUpdated);
       _listening = true;
+    }
+    // show one-time welcome message after setup completes
+    try {
+      final settings = Hive.box('settings');
+      final isSetupComplete =
+          settings.get('isSetupComplete', defaultValue: false) as bool;
+      final welcomeShown =
+          settings.get('welcomeShown', defaultValue: false) as bool;
+      if (isSetupComplete && !welcomeShown) {
+        final provider = Provider.of<TerminalHistoryProvider>(
+          context,
+          listen: false,
+        );
+        provider.addOutput(
+          "Welcome to DevLauncher v1.0.0. Type 'help' to get started.",
+        );
+        settings.put('welcomeShown', true);
+      }
+    } catch (e) {
+      // Hive may not be initialized in tests; ignore failures
     }
   }
 
