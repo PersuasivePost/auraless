@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'screens/terminal_home_screen.dart';
 import 'providers/lifecycle_provider.dart';
 import 'core/hive_service.dart';
+import 'core/native_channel_service.dart';
+import 'providers/usage_stats_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,8 +57,13 @@ class _LauncherAppState extends State<LauncherApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => LifecycleProvider(),
+    final native = NativeChannelService();
+
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LifecycleProvider()),
+        ChangeNotifierProvider(create: (_) => UsageStatsProvider(native)),
+      ],
       child: MaterialApp(
         title: 'Mini',
         theme: ThemeData.dark(),

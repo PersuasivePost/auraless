@@ -13,6 +13,10 @@ import android.os.Environment
 import android.os.StatFs
 import android.os.SystemClock
 import android.util.Base64
+import android.app.usage.UsageStats
+import android.app.usage.UsageStatsManager
+import android.app.AppOpsManager
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -25,6 +29,7 @@ class MainActivity : FlutterActivity() {
 	private val USAGE_CHANNEL = "usage_stats_channel"
 	private val GRAYSCALE_CHANNEL = "grayscale_channel"
 	private val CONTACTS_CHANNEL = "contacts_channel"
+	private val BLOCKED_CHANNEL = "blocked_apps_channel"
 
 	override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
 		super.configureFlutterEngine(flutterEngine)
@@ -66,10 +71,151 @@ class MainActivity : FlutterActivity() {
 			}
 		}
 
-		// placeholders for future channels
-		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, USAGE_CHANNEL).setMethodCallHandler { _, r -> r.notImplemented() }
-		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, GRAYSCALE_CHANNEL).setMethodCallHandler { _, r -> r.notImplemented() }
+		// Usage stats channel
+		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, USAGE_CHANNEL).setMethodCallHandler { call, result ->
+			when (call.method) {
+				"hasUsagePermission" -> {
+					try {
+						val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+						val mode = appOps.checkOpNoThrow(
+							AppOpsManager.OPSTR_GET_USAGE_STATS,
+							android.os.Process.myUid(),
+							packageName
+						)
+						result.success(mode == AppOpsManager.MODE_ALLOWED)
+					} catch (e: Exception) {
+						result.error("ERROR", e.localizedMessage, null)
+					}
+				}
+				"getUsageStats" -> {
+					try {
+						val args = call.arguments as? Map<*, *>
+						val start = (args?.get("start") as? Number)?.toLong() ?: 0L
+						val end = (args?.get("end") as? Number)?.toLong() ?: System.currentTimeMillis()
+
+						val usm = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+						val stats: List<UsageStats> = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, end)
+
+						val mapped = stats.map { s ->
+							mapOf(
+								"packageName" to s.packageName,
+								"totalTimeInForeground" to s.totalTimeInForeground
+							)
+						}
+						result.success(mapped)
+					} catch (e: Exception) {
+						result.error("ERROR", e.localizedMessage, null)
+					}
+				}
+				"requestUsagePermission" -> {
+					try {
+						val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+						intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+						startActivity(intent)
+						result.success(null)
+					} catch (e: Exception) {
+						result.error("ERROR", e.localizedMessage, null)
+					}
+				}
+				else -> result.notImplemented()
+			}
+		}
+
+		// Grayscale channel: enable/disable monochrome display (requires WRITE_SECURE_SETTINGS)
+		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, GRAYSCALE_CHANNEL).setMethodCallHandler { call, result ->
+			when (call.method) {
+				"enableGrayscale" -> {
+					try {
+						val ok1 = Settings.Secure.putString(contentResolver, "accessibility_display_daltonizer_enabled", "1")
+						val ok2 = Settings.Secure.putString(contentResolver, "accessibility_display_daltonizer", "0")
+						result.success(ok1 && ok2)
+					} catch (se: SecurityException) {
+						result.error("PERMISSION_DENIED", se.localizedMessage, null)
+					} catch (e: Exception) {
+						result.error("ERROR", e.localizedMessage, null)
+					}
+				}
+				"disableGrayscale" -> {
+					try {
+						val ok = Settings.Secure.putString(contentResolver, "accessibility_display_daltonizer_enabled", "0")
+						result.success(ok)
+					} catch (se: SecurityException) {
+						result.error("PERMISSION_DENIED", se.localizedMessage, null)
+					} catch (e: Exception) {
+						result.error("ERROR", e.localizedMessage, null)
+					}
+				}
+				else -> result.notImplemented()
+			}
+		}
 		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CONTACTS_CHANNEL).setMethodCallHandler { _, r -> r.notImplemented() }
+
+		// Blocked apps channel - uses SharedPreferences to maintain comma-separated list
+		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BLOCKED_CHANNEL).setMethodCallHandler { call, result ->
+			try {
+				val prefs = getSharedPreferences("mindful_prefs", Context.MODE_PRIVATE)
+				val key = "blocked_packages"
+				when (call.method) {
+					"addBlockedApp" -> {
+						val pkg = call.arguments as? String
+						if (pkg != null) {
+							val csv = prefs.getString(key, "") ?: ""
+							val set = csv.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
+							if (!set.contains(pkg)) {
+								set.add(pkg)
+								prefs.edit().putString(key, set.joinToString(",")).apply()
+							}
+							result.success(null)
+						} else {
+							result.error("INVALID_ARGS", "packageName missing", null)
+						}
+					}
+					"removeBlockedApp" -> {
+						val pkg = call.arguments as? String
+						if (pkg != null) {
+							val csv = prefs.getString(key, "") ?: ""
+							val set = csv.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
+							if (set.contains(pkg)) {
+								set.remove(pkg)
+								prefs.edit().putString(key, set.joinToString(",")).apply()
+							}
+							result.success(null)
+						} else {
+							result.error("INVALID_ARGS", "packageName missing", null)
+						}
+					}
+					"getBlockedApps" -> {
+						val csv = prefs.getString(key, "") ?: ""
+						val list = csv.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+						result.success(list)
+					}
+					"isAccessibilityServiceEnabled" -> {
+						// rudimentary check: verify if service is enabled in secure settings
+						try {
+							val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+							val serviceName = "com.yourname.devlauncher/.MindfulAccessibilityService"
+							val present = enabled?.contains(serviceName) == true
+							result.success(present)
+						} catch (e: Exception) {
+							result.error("ERROR", e.localizedMessage, null)
+						}
+					}
+					"openAccessibilitySettings" -> {
+						try {
+							val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+							intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+							startActivity(intent)
+							result.success(null)
+						} catch (e: Exception) {
+							result.error("ERROR", e.localizedMessage, null)
+						}
+					}
+					else -> result.notImplemented()
+				}
+			} catch (e: Exception) {
+				result.error("ERROR", e.localizedMessage, null)
+			}
+		}
 	}
 
 	private fun getInstalledApps(): List<Map<String, Any?>> {

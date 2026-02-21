@@ -42,4 +42,85 @@ class NativeChannelService {
       await _grayChannel.invokeMethod('placeholder');
   Future<dynamic> contactsPlaceholder() async =>
       await _contactsChannel.invokeMethod('placeholder');
+
+  // Usage stats
+  Future<List<Map<String, dynamic>>> getUsageStats(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final args = {
+      'start': start.millisecondsSinceEpoch,
+      'end': end.millisecondsSinceEpoch,
+    };
+    final List<dynamic> raw = await _usageChannel.invokeMethod(
+      'getUsageStats',
+      args,
+    );
+    return raw
+        .cast<Map<dynamic, dynamic>>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+  }
+
+  Future<bool> hasUsageStatsPermission() async {
+    final res = await _usageChannel.invokeMethod('hasUsagePermission');
+    return res == true;
+  }
+
+  Future<void> requestUsageStatsPermission() async {
+    await _usageChannel.invokeMethod('requestUsagePermission');
+  }
+
+  // Blocked apps management
+  Future<void> addBlockedApp(String packageName) async {
+    await MethodChannel(
+      'blocked_apps_channel',
+    ).invokeMethod('addBlockedApp', packageName);
+  }
+
+  Future<void> removeBlockedApp(String packageName) async {
+    await MethodChannel(
+      'blocked_apps_channel',
+    ).invokeMethod('removeBlockedApp', packageName);
+  }
+
+  Future<List<String>> getBlockedApps() async {
+    final List<dynamic> raw = await MethodChannel(
+      'blocked_apps_channel',
+    ).invokeMethod('getBlockedApps');
+    return raw.cast<String>().toList();
+  }
+
+  Future<bool> isAccessibilityServiceEnabled() async {
+    final res = await MethodChannel(
+      'blocked_apps_channel',
+    ).invokeMethod('isAccessibilityServiceEnabled');
+    return res == true;
+  }
+
+  Future<void> openAccessibilitySettings() async {
+    await MethodChannel(
+      'blocked_apps_channel',
+    ).invokeMethod('openAccessibilitySettings');
+  }
+
+  Future<bool> enableGrayscale() async {
+    try {
+      final res = await _grayChannel.invokeMethod('enableGrayscale');
+      return res == true;
+    } on PlatformException catch (e) {
+      if (e.code == 'PERMISSION_DENIED') return false;
+      rethrow;
+    }
+  }
+
+  Future<bool> disableGrayscale() async {
+    try {
+      final res = await _grayChannel.invokeMethod('disableGrayscale');
+      return res == true;
+    } on PlatformException catch (e) {
+      if (e.code == 'PERMISSION_DENIED') return false;
+      rethrow;
+    }
+  }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mini/core/native_channel_service.dart';
 import 'package:mini/providers/terminal_history_provider.dart';
 import 'package:mini/screens/settings_screen.dart';
+// ...existing code...
+import 'package:mini/screens/usage_stats_screen.dart';
 
 class CommandParser {
   final BuildContext context;
@@ -48,20 +50,23 @@ class CommandParser {
         case 'stats':
           _cmdPlaceholder('stats', 'Usage stats (placeholder)');
           break;
+        case 'usage':
+          _cmdUsage();
+          break;
         case 'status':
           await _cmdStatus();
           break;
         case 'lock':
-          _cmdLock(args);
+          await _cmdLock(args);
           break;
         case 'unlock':
-          _cmdPlaceholder('unlock', 'unlock (placeholder)');
+          await _cmdUnlock(args);
           break;
         case 'focus':
           _cmdPlaceholder('focus', 'focus (placeholder)');
           break;
         case 'grayscale':
-          _cmdPlaceholder('grayscale', 'grayscale (placeholder)');
+          await _cmdGrayscale(args);
           break;
         case 'alias':
           _cmdAlias(args);
@@ -168,21 +173,7 @@ class CommandParser {
     historyProvider.addOutput('Network: ${info['networkType'] ?? '-'}');
   }
 
-  void _cmdLock(List<String> args) {
-    if (args.length < 2) {
-      historyProvider.addError('Invalid duration. Usage: lock <app> <minutes>');
-      return;
-    }
-    final app = args[0];
-    final minutes = int.tryParse(args[1]);
-    if (minutes == null || minutes <= 0) {
-      historyProvider.addError('Invalid duration. Usage: lock <app> <minutes>');
-      return;
-    }
-    historyProvider.addOutput(
-      'Locking $app for $minutes minutes (placeholder)',
-    );
-  }
+  // ...previous placeholder removed; see async _cmdLock implementation below
 
   void _cmdAlias(List<String> args) {
     if (args.isEmpty) {
@@ -217,5 +208,140 @@ class CommandParser {
       context,
     ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
     historyProvider.addOutput('Opened settings (placeholder)');
+  }
+
+  void _cmdUsage() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const UsageStatsScreen()));
+    historyProvider.addOutput('Opened usage stats');
+  }
+
+  Future<void> _cmdLock(List<String> args) async {
+    if (args.length < 2) {
+      historyProvider.addError('Invalid usage. Usage: lock <app> <minutes>');
+      return;
+    }
+    final query = args[0];
+    // find app
+    final apps = await native.getInstalledApps();
+    final lower = query.toLowerCase();
+    final match = apps.firstWhere((a) {
+      final name = (a['name'] ?? '').toString().toLowerCase();
+      final pkg = (a['packageName'] ?? '').toString().toLowerCase();
+      return name.contains(lower) || pkg.contains(lower);
+    }, orElse: () => {});
+    if (match.isEmpty) {
+      historyProvider.addError('No app matching "$query"');
+      return;
+    }
+    final pkgName = match['packageName'] as String?;
+    if (pkgName == null) {
+      historyProvider.addError('No packageName for matched app');
+      return;
+    }
+
+    // Check accessibility service status
+    final accessEnabled = await native
+        .isAccessibilityServiceEnabled()
+        .catchError((_) => false);
+    if (!accessEnabled) {
+      historyProvider.addOutput(
+        'Accessibility service is not enabled. Opening settings...',
+      );
+      await native.openAccessibilitySettings();
+      return;
+    }
+
+    try {
+      await native.addBlockedApp(pkgName);
+      historyProvider.addOutput('Blocked ${match['name']} ($pkgName)');
+    } catch (e) {
+      historyProvider.addError('Failed to block $pkgName: ${e.toString()}');
+    }
+  }
+
+  Future<void> _cmdUnlock(List<String> args) async {
+    // if no args, list blocked
+    if (args.isEmpty) {
+      try {
+        final list = await native.getBlockedApps();
+        if (list.isEmpty) {
+          historyProvider.addOutput('No blocked apps');
+        } else {
+          for (var p in list) historyProvider.addOutput(p);
+        }
+      } catch (e) {
+        historyProvider.addError(
+          'Failed to fetch blocked apps: ${e.toString()}',
+        );
+      }
+      return;
+    }
+
+    final query = args[0];
+    // try resolve package by name
+    final apps = await native.getInstalledApps();
+    final lower = query.toLowerCase();
+    final match = apps.firstWhere((a) {
+      final name = (a['name'] ?? '').toString().toLowerCase();
+      final pkg = (a['packageName'] ?? '').toString().toLowerCase();
+      return name.contains(lower) || pkg.contains(lower) || pkg == lower;
+    }, orElse: () => {});
+    String? pkgName;
+    if (match.isEmpty) {
+      // maybe the user passed the package directly
+      pkgName = query;
+    } else {
+      pkgName = match['packageName'] as String?;
+    }
+
+    if (pkgName == null) {
+      historyProvider.addError('No packageName for matched app');
+      return;
+    }
+
+    try {
+      await native.removeBlockedApp(pkgName);
+      historyProvider.addOutput('Unblocked $pkgName');
+    } catch (e) {
+      historyProvider.addError('Failed to unblock $pkgName: ${e.toString()}');
+    }
+  }
+
+  Future<void> _cmdGrayscale(List<String> args) async {
+    // support: grayscale on | grayscale off
+    if (args.isEmpty) {
+      historyProvider.addOutput('Usage: grayscale on|off');
+      return;
+    }
+    final mode = args[0].toLowerCase();
+    try {
+      if (mode == 'on' || mode == 'true' || mode == '1') {
+        final ok = await native.enableGrayscale();
+        if (ok) {
+          historyProvider.addOutput('Grayscale enabled');
+        } else {
+          historyProvider.addOutput(
+            'Permission denied. Run: adb shell pm grant com.yourname.devlauncher android.permission.WRITE_SECURE_SETTINGS',
+          );
+        }
+        return;
+      }
+      if (mode == 'off' || mode == 'false' || mode == '0') {
+        final ok = await native.disableGrayscale();
+        if (ok) {
+          historyProvider.addOutput('Grayscale disabled');
+        } else {
+          historyProvider.addOutput(
+            'Permission denied. Run: adb shell pm grant com.yourname.devlauncher android.permission.WRITE_SECURE_SETTINGS',
+          );
+        }
+        return;
+      }
+      historyProvider.addError('Unknown mode: $mode. Use on|off');
+    } catch (e) {
+      historyProvider.addError('Error toggling grayscale: ${e.toString()}');
+    }
   }
 }
