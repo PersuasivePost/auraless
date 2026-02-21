@@ -56,7 +56,13 @@ class MainActivity : FlutterActivity() {
 				} catch (e: Exception) { }
 			}
 		}
-		registerReceiver(br, android.content.IntentFilter("com.example.mini.PACKAGE_CHANGED_INTERNAL"))
+		val internalFilter = android.content.IntentFilter("com.example.mini.PACKAGE_CHANGED_INTERNAL")
+		// Android 13+ requires specifying receiver exportedness when registering non-system receivers.
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+			registerReceiver(br, internalFilter, Context.RECEIVER_NOT_EXPORTED)
+		} else {
+			registerReceiver(br, internalFilter)
+		}
 
 		// If there is a pending event saved by the receiver before Flutter was ready, forward it now
 		try {
@@ -251,49 +257,6 @@ class MainActivity : FlutterActivity() {
 							result.error("INVALID_ARGS", "packageName missing", null)
 						}
 					}
-
-				// Accessibility check channel
-				MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "accessibility_check_channel").setMethodCallHandler { call, result ->
-					when (call.method) {
-								"isAccessibilityServiceEnabled" -> {
-									try {
-										val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-										val list = am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
-										// Be flexible: match by declared service class name or package + class
-										val present = list.any { si ->
-											val ri = si.resolveInfo ?: return@any false
-											val pkg = ri.serviceInfo.packageName ?: ""
-											val name = ri.serviceInfo.name ?: ""
-											// Match if the class name matches our listener class or the package matches this app
-											name.endsWith("MindfulAccessibilityService") || pkg == applicationContext.packageName && name.contains("MindfulAccessibilityService")
-										}
-										result.success(present)
-									} catch (e: Exception) {
-										result.error("ERROR", e.localizedMessage, null)
-									}
-								}
-						else -> result.notImplemented()
-					}
-				}
-
-				// Notification listener check channel
-				MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "notification_listener_check_channel").setMethodCallHandler { call, result ->
-					when (call.method) {
-						"isNotificationListenerEnabled" -> {
-								try {
-									// Check via NotificationManagerCompat for enabled packages
-									val enabledViaCompat = NotificationManagerCompat.getEnabledListenerPackages(this).contains(applicationContext.packageName)
-									// Also check enabled_notification_listeners secure setting as a fallback
-									val enabledSetting = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: ""
-									val presentInSettings = enabledSetting.contains(applicationContext.packageName)
-									result.success(enabledViaCompat || presentInSettings)
-								} catch (e: Exception) {
-									result.error("ERROR", e.localizedMessage, null)
-								}
-							}
-						else -> result.notImplemented()
-					}
-				}
 					"removeBlockedApp" -> {
 						val pkg = call.arguments as? String
 						if (pkg != null) {
@@ -313,27 +276,6 @@ class MainActivity : FlutterActivity() {
 						val list = csv.split(',').map { it.trim() }.filter { it.isNotEmpty() }
 						result.success(list)
 					}
-					"isAccessibilityServiceEnabled" -> {
-						// Check enabled accessibility services string for our service by package or class name
-						try {
-							val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
-							val serviceComponent = "${applicationContext.packageName}/.MindfulAccessibilityService"
-							val present = enabled?.contains(serviceComponent) == true || enabled?.contains("MindfulAccessibilityService") == true
-							result.success(present)
-						} catch (e: Exception) {
-							result.error("ERROR", e.localizedMessage, null)
-						}
-					}
-					"openAccessibilitySettings" -> {
-						try {
-							val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-							intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-							startActivity(intent)
-							result.success(null)
-						} catch (e: Exception) {
-							result.error("ERROR", e.localizedMessage, null)
-						}
-					}
 					"setMindfulDelaySeconds" -> {
 						val v = (call.arguments as? Number)?.toInt() ?: 30
 						prefs.edit().putInt("mindful_delay_seconds", v).apply()
@@ -347,6 +289,45 @@ class MainActivity : FlutterActivity() {
 				}
 			} catch (e: Exception) {
 				result.error("ERROR", e.localizedMessage, null)
+			}
+		}
+
+		// Accessibility check channel - returns whether our accessibility service is present
+		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "accessibility_check_channel").setMethodCallHandler { call, result ->
+			when (call.method) {
+				"isAccessibilityServiceEnabled" -> {
+					try {
+						val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+						val list = am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+						val present = list.any { si ->
+							val ri = si.resolveInfo ?: return@any false
+							val pkg = ri.serviceInfo.packageName ?: ""
+							val name = ri.serviceInfo.name ?: ""
+							name.endsWith("MindfulAccessibilityService") || (pkg == applicationContext.packageName && name.contains("MindfulAccessibilityService"))
+						}
+						result.success(present)
+					} catch (e: Exception) {
+						result.error("ERROR", e.localizedMessage, null)
+					}
+				}
+				else -> result.notImplemented()
+			}
+		}
+
+		// Notification listener check channel
+		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "notification_listener_check_channel").setMethodCallHandler { call, result ->
+			when (call.method) {
+				"isNotificationListenerEnabled" -> {
+					try {
+						val enabledViaCompat = NotificationManagerCompat.getEnabledListenerPackages(this).contains(applicationContext.packageName)
+						val enabledSetting = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: ""
+						val presentInSettings = enabledSetting.contains(applicationContext.packageName)
+						result.success(enabledViaCompat || presentInSettings)
+					} catch (e: Exception) {
+						result.error("ERROR", e.localizedMessage, null)
+					}
+				}
+				else -> result.notImplemented()
 			}
 		}
 

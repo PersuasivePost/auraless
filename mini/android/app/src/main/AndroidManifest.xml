@@ -69,7 +69,7 @@
         <!-- Mindful delay full-screen activity (placeholder) -->
         <activity
             android:name=".MindfulDelayActivity"
-            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:theme="@style/NormalTheme"
             android:excludeFromRecents="true"
             android:launchMode="singleTop"
             android:exported="false" />
