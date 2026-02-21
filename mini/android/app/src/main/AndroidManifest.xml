@@ -45,7 +45,7 @@
         </activity>
         <!-- Accessibility Service (placeholder; implemented later) -->
         <service
-            android:name=".MindfulAccessibilityService"
+            android:name="com.yourname.devlauncher.MindfulAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
             <intent-filter>
@@ -58,7 +58,7 @@
 
         <!-- Notification listener service (placeholder) -->
         <service
-            android:name=".NotificationListener"
+            android:name="com.yourname.devlauncher.NotificationListener"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
             android:exported="true">
             <intent-filter>

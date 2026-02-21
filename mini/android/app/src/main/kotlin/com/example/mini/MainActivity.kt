@@ -30,6 +30,7 @@ class MainActivity : FlutterActivity() {
 	private val GRAYSCALE_CHANNEL = "grayscale_channel"
 	private val CONTACTS_CHANNEL = "contacts_channel"
 	private val BLOCKED_CHANNEL = "blocked_apps_channel"
+	private val NOTIF_CHANNEL = "notification_channel"
 
 	override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
 		super.configureFlutterEngine(flutterEngine)
@@ -135,6 +136,15 @@ class MainActivity : FlutterActivity() {
 						result.error("ERROR", e.localizedMessage, null)
 					}
 				}
+					"isGrayscaleEnabled" -> {
+						try {
+							val enabled = Settings.Secure.getInt(contentResolver, "accessibility_display_daltonizer_enabled", 0) == 1
+							val daltonizer = Settings.Secure.getString(contentResolver, "accessibility_display_daltonizer")
+							result.success(enabled && daltonizer == "0")
+						} catch (e: Exception) {
+							result.error("ERROR", e.localizedMessage, null)
+						}
+					}
 				"disableGrayscale" -> {
 					try {
 						val ok = Settings.Secure.putString(contentResolver, "accessibility_display_daltonizer_enabled", "0")
@@ -210,6 +220,98 @@ class MainActivity : FlutterActivity() {
 							result.error("ERROR", e.localizedMessage, null)
 						}
 					}
+					"setMindfulDelaySeconds" -> {
+						val v = (call.arguments as? Number)?.toInt() ?: 30
+						prefs.edit().putInt("mindful_delay_seconds", v).apply()
+						result.success(null)
+					}
+					"getMindfulDelaySeconds" -> {
+						val v = prefs.getInt("mindful_delay_seconds", 30)
+						result.success(v)
+					}
+					else -> result.notImplemented()
+				}
+			} catch (e: Exception) {
+				result.error("ERROR", e.localizedMessage, null)
+			}
+		}
+
+		// Notification channel - digest storage and essential whitelist
+		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, NOTIF_CHANNEL).setMethodCallHandler { call, result ->
+			try {
+				val prefs = getSharedPreferences("mindful_prefs", Context.MODE_PRIVATE)
+				val digestKey = "notification_digest"
+				val essentialKey = "essential_packages"
+				when (call.method) {
+					"getNotificationDigest" -> {
+						val json = prefs.getString(digestKey, "") ?: ""
+						if (json.isEmpty()) result.success(listOf<Map<String, Any>>()) else result.success(org.json.JSONArray(json).let { arr ->
+							val out = mutableListOf<Map<String, Any>>()
+							for (i in 0 until arr.length()) {
+								val o = arr.getJSONObject(i)
+								val map = mapOf(
+									"package" to o.optString("package"),
+									"title" to o.optString("title"),
+									"text" to o.optString("text"),
+									"postTime" to o.optLong("postTime")
+								)
+								out.add(map)
+							}
+							out
+						})
+				}
+					"clearNotificationDigest" -> {
+						prefs.edit().putString(digestKey, "").apply()
+						result.success(null)
+					}
+					"addEssentialPackage" -> {
+						val pkg = call.arguments as? String
+						if (pkg != null) {
+							val csv = prefs.getString(essentialKey, "") ?: ""
+							val set = csv.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
+							if (!set.contains(pkg)) {
+								set.add(pkg)
+								prefs.edit().putString(essentialKey, set.joinToString(",")).apply()
+							}
+							result.success(null)
+						} else result.error("INVALID_ARGS", "packageName missing", null)
+					}
+					"removeEssentialPackage" -> {
+						val pkg = call.arguments as? String
+						if (pkg != null) {
+							val csv = prefs.getString(essentialKey, "") ?: ""
+							val set = csv.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
+							if (set.contains(pkg)) {
+								set.remove(pkg)
+								prefs.edit().putString(essentialKey, set.joinToString(",")).apply()
+							}
+							result.success(null)
+						} else result.error("INVALID_ARGS", "packageName missing", null)
+					}
+					"getEssentialPackages" -> {
+						val csv = prefs.getString(essentialKey, "") ?: ""
+						val list = csv.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+						result.success(list)
+					}
+							"openNotificationListenerSettings" -> {
+								try {
+									val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+									intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+									startActivity(intent)
+									result.success(null)
+								} catch (e: Exception) {
+									result.error("ERROR", e.localizedMessage, null)
+								}
+							}
+							"isNotificationListenerEnabled" -> {
+								try {
+									val enabled = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: ""
+									val present = enabled.contains("com.yourname.devlauncher")
+									result.success(present)
+								} catch (e: Exception) {
+									result.error("ERROR", e.localizedMessage, null)
+								}
+							}
 					else -> result.notImplemented()
 				}
 			} catch (e: Exception) {

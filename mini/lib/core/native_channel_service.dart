@@ -104,6 +104,19 @@ class NativeChannelService {
     ).invokeMethod('openAccessibilitySettings');
   }
 
+  Future<void> setMindfulDelaySeconds(int seconds) async {
+    await MethodChannel(
+      'blocked_apps_channel',
+    ).invokeMethod('setMindfulDelaySeconds', seconds);
+  }
+
+  Future<int> getMindfulDelaySeconds() async {
+    final res = await MethodChannel(
+      'blocked_apps_channel',
+    ).invokeMethod('getMindfulDelaySeconds');
+    return (res is int) ? res : int.parse(res.toString());
+  }
+
   Future<bool> enableGrayscale() async {
     try {
       final res = await _grayChannel.invokeMethod('enableGrayscale');
@@ -122,5 +135,63 @@ class NativeChannelService {
       if (e.code == 'PERMISSION_DENIED') return false;
       rethrow;
     }
+  }
+
+  Future<bool> isGrayscaleEnabled() async {
+    try {
+      final res = await _grayChannel.invokeMethod('isGrayscaleEnabled');
+      return res == true;
+    } on PlatformException catch (_) {
+      return false;
+    }
+  }
+
+  // Notifications
+  Future<List<Map<String, dynamic>>> getNotificationDigest() async {
+    final List<dynamic> raw = await MethodChannel(
+      'notification_channel',
+    ).invokeMethod('getNotificationDigest');
+    return raw
+        .cast<Map<dynamic, dynamic>>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+  }
+
+  Future<void> clearNotificationDigest() async {
+    await MethodChannel(
+      'notification_channel',
+    ).invokeMethod('clearNotificationDigest');
+  }
+
+  Future<void> addEssentialPackage(String packageName) async {
+    await MethodChannel(
+      'notification_channel',
+    ).invokeMethod('addEssentialPackage', packageName);
+  }
+
+  Future<void> removeEssentialPackage(String packageName) async {
+    await MethodChannel(
+      'notification_channel',
+    ).invokeMethod('removeEssentialPackage', packageName);
+  }
+
+  Future<List<String>> getEssentialPackages() async {
+    final List<dynamic> raw = await MethodChannel(
+      'notification_channel',
+    ).invokeMethod('getEssentialPackages');
+    return raw.cast<String>().toList();
+  }
+
+  Future<void> openNotificationListenerSettings() async {
+    await MethodChannel(
+      'notification_channel',
+    ).invokeMethod('openNotificationListenerSettings');
+  }
+
+  Future<bool> isNotificationListenerEnabled() async {
+    final res = await MethodChannel(
+      'notification_channel',
+    ).invokeMethod('isNotificationListenerEnabled');
+    return res == true;
   }
 }

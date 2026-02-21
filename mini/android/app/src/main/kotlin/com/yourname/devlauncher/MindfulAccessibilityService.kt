@@ -28,8 +28,11 @@ class MindfulAccessibilityService : AccessibilityService() {
                 if (blocked.contains(pkg)) {
                     Log.d("MindfulAS", "Blocked package detected: $pkg")
                     // Launch the MindfulDelayActivity with the package name
+                    val prefs2 = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    val delay = prefs2.getInt("mindful_delay_seconds", 30)
                     val i = Intent(this, Class.forName("com.example.mini.MindfulDelayActivity"))
                     i.putExtra("packageName", pkg)
+                    i.putExtra("mindful_delay_seconds", delay)
                     i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     startActivity(i)
 

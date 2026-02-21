@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
+import 'digital_wellbeing_settings.dart';
+import 'appearance_settings.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -42,7 +44,22 @@ class SettingsScreen extends StatelessWidget {
               name,
               style: TextStyle(color: kPrimaryGreen, fontFamily: 'monospace'),
             ),
-            onTap: () {},
+            onTap: () {
+              if (name == 'Digital Wellbeing') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const DigitalWellbeingSettings(),
+                  ),
+                );
+                return;
+              }
+              if (name == 'Appearance') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AppearanceSettings()),
+                );
+                return;
+              }
+            },
           );
         },
       ),

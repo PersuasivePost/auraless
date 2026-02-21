@@ -4,6 +4,7 @@ import 'package:mini/providers/terminal_history_provider.dart';
 import 'package:mini/screens/settings_screen.dart';
 // ...existing code...
 import 'package:mini/screens/usage_stats_screen.dart';
+import 'package:mini/providers/usage_stats_provider.dart';
 
 class CommandParser {
   final BuildContext context;
@@ -48,7 +49,7 @@ class CommandParser {
           _cmdPlaceholder('top', 'Top used apps (placeholder)');
           break;
         case 'stats':
-          _cmdPlaceholder('stats', 'Usage stats (placeholder)');
+          await _cmdStats(args);
           break;
         case 'usage':
           _cmdUsage();
@@ -63,13 +64,19 @@ class CommandParser {
           await _cmdUnlock(args);
           break;
         case 'focus':
-          _cmdPlaceholder('focus', 'focus (placeholder)');
+          await _cmdFocus(args);
           break;
         case 'grayscale':
           await _cmdGrayscale(args);
           break;
         case 'alias':
           _cmdAlias(args);
+          break;
+        case 'notifications':
+          await _cmdNotifications(args);
+          break;
+        case 'essential':
+          await _cmdEssential(args);
           break;
         case 'settings':
           _cmdSettings();
@@ -95,7 +102,7 @@ class CommandParser {
       'top - top used apps (placeholder)',
       'stats - usage stats (placeholder)',
       'status - show system info',
-      'lock <app> <minutes> - placeholder',
+      'lock <app> [minutes] - block app (minutes optional, not enforced in MVP)',
       'unlock - placeholder',
       'focus - placeholder',
       'grayscale - placeholder',
@@ -218,11 +225,15 @@ class CommandParser {
   }
 
   Future<void> _cmdLock(List<String> args) async {
-    if (args.length < 2) {
-      historyProvider.addError('Invalid usage. Usage: lock <app> <minutes>');
+    if (args.isEmpty) {
+      historyProvider.addError('Invalid usage. Usage: lock <app> [minutes]');
       return;
     }
     final query = args[0];
+    int? minutes;
+    if (args.length >= 2) {
+      minutes = int.tryParse(args[1]);
+    }
     // find app
     final apps = await native.getInstalledApps();
     final lower = query.toLowerCase();
@@ -255,7 +266,13 @@ class CommandParser {
 
     try {
       await native.addBlockedApp(pkgName);
-      historyProvider.addOutput('Blocked ${match['name']} ($pkgName)');
+      if (minutes != null) {
+        historyProvider.addOutput(
+          'Blocked ${match['name']} ($pkgName) for $minutes minutes (note: automatic unblock not implemented)',
+        );
+      } else {
+        historyProvider.addOutput('Blocked ${match['name']} ($pkgName)');
+      }
     } catch (e) {
       historyProvider.addError('Failed to block $pkgName: ${e.toString()}');
     }
@@ -269,7 +286,9 @@ class CommandParser {
         if (list.isEmpty) {
           historyProvider.addOutput('No blocked apps');
         } else {
-          for (var p in list) historyProvider.addOutput(p);
+          for (var p in list) {
+            historyProvider.addOutput(p);
+          }
         }
       } catch (e) {
         historyProvider.addError(
@@ -342,6 +361,168 @@ class CommandParser {
       historyProvider.addError('Unknown mode: $mode. Use on|off');
     } catch (e) {
       historyProvider.addError('Error toggling grayscale: ${e.toString()}');
+    }
+  }
+
+  Future<void> _cmdNotifications(List<String> args) async {
+    // show last 20 notifications
+    try {
+      final list = await native.getNotificationDigest();
+      if (list.isEmpty) {
+        historyProvider.addOutput('No notifications');
+        return;
+      }
+      final total = list.length;
+      final start = total > 20 ? total - 20 : 0;
+      final take = list.sublist(start, total).reversed.toList();
+      int idx = 0;
+      for (var n in take) {
+        idx++;
+        final pkg = n['package'] ?? '';
+        final title = n['title'] ?? '';
+        final text = n['text'] ?? '';
+        historyProvider.addOutput('$idx. [$pkg] $title - $text');
+      }
+    } catch (e) {
+      historyProvider.addError(
+        'Failed to fetch notifications: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _cmdEssential(List<String> args) async {
+    if (args.isEmpty) {
+      historyProvider.addError('Usage: essential [add|remove|list] <app>');
+      return;
+    }
+    final sub = args[0];
+    if (sub == 'list') {
+      try {
+        final list = await native.getEssentialPackages();
+        if (list.isEmpty) {
+          historyProvider.addOutput('No essential packages');
+        } else {
+          for (var p in list) {
+            historyProvider.addOutput(p);
+          }
+        }
+      } catch (e) {
+        historyProvider.addError('Failed to fetch essentials: ${e.toString()}');
+      }
+      return;
+    }
+    if (args.length < 2) {
+      historyProvider.addError('Usage: essential [add|remove|list] <app>');
+      return;
+    }
+    final app = args.sublist(1).join(' ');
+    // try to resolve package name
+    final apps = await native.getInstalledApps();
+    final lower = app.toLowerCase();
+    final match = apps.firstWhere((a) {
+      final name = (a['name'] ?? '').toString().toLowerCase();
+      final pkg = (a['packageName'] ?? '').toString().toLowerCase();
+      return name.contains(lower) || pkg.contains(lower);
+    }, orElse: () => {});
+    String pkgName = match.isEmpty
+        ? app
+        : (match['packageName'] as String? ?? app);
+
+    try {
+      if (sub == 'add') {
+        await native.addEssentialPackage(pkgName);
+        historyProvider.addOutput('Added essential $pkgName');
+      } else if (sub == 'remove') {
+        await native.removeEssentialPackage(pkgName);
+        historyProvider.addOutput('Removed essential $pkgName');
+      } else {
+        historyProvider.addError('Unknown subcommand: $sub');
+      }
+    } catch (e) {
+      historyProvider.addError(
+        'Failed to modify essential packages: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _cmdFocus(List<String> args) async {
+    if (args.isEmpty) {
+      historyProvider.addOutput('Usage: focus on|off');
+      return;
+    }
+    final mode = args[0].toLowerCase();
+    if (mode == 'on') {
+      // Placeholder: enable focus mode (actual blocking will be implemented later)
+      historyProvider.addOutput(
+        'Focus mode activated. All non-essential apps blocked.',
+      );
+      return;
+    }
+    if (mode == 'off') {
+      // Placeholder: disable focus mode
+      historyProvider.addOutput('Focus mode disabled.');
+      return;
+    }
+    historyProvider.addError('Unknown mode: $mode. Use on|off');
+  }
+
+  Future<void> _cmdStats(List<String> args) async {
+    DateTime day = DateTime.now();
+    if (args.isNotEmpty) {
+      final a = args[0].toLowerCase();
+      if (a == 'today') {
+        day = DateTime.now();
+      } else if (a == 'yesterday') {
+        day = DateTime.now().subtract(const Duration(days: 1));
+      } else {
+        // try parse yyyy-mm-dd
+        try {
+          day = DateTime.parse(a);
+        } catch (e) {
+          historyProvider.addError('Invalid date: $a');
+          return;
+        }
+      }
+    }
+
+    final provider = UsageStatsProvider(native);
+    await provider.loadForDay(day);
+    if (provider.entries.isEmpty) {
+      // check permission
+      final has = await native.hasUsageStatsPermission().catchError(
+        (_) => false,
+      );
+      if (!has) {
+        historyProvider.addOutput(
+          'Usage permission not granted. Run the usage permission settings.',
+        );
+        await native.requestUsageStatsPermission();
+        return;
+      }
+      historyProvider.addOutput(
+        'No usage data for ${day.toIso8601String().split('T').first}',
+      );
+      return;
+    }
+
+    int i = 0;
+    for (final e in provider.entries) {
+      i++;
+      final mins = (e.totalTimeInForeground / 60000).round();
+      final label = mins >= 60
+          ? '${(mins / 60).toStringAsFixed(1)}h'
+          : '${mins}m';
+      // try to resolve app name from installed apps
+      final apps = await native.getInstalledApps();
+      final found = apps.firstWhere(
+        (a) => (a['packageName'] ?? '') == e.packageName,
+        orElse: () => {},
+      );
+      final name = found.isEmpty
+          ? e.packageName
+          : (found['name'] ?? e.packageName);
+      historyProvider.addOutput('$i. $name – $label');
+      if (i >= 50) break; // safety
     }
   }
 }
