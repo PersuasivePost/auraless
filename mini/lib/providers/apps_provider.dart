@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:mini/core/native_channel_service.dart';
-import 'package:mini/core/hive_service.dart';
+import 'package:auraless/core/native_channel_service.dart';
+import 'package:auraless/core/hive_service.dart';
 
 class AppsProvider extends ChangeNotifier {
   final NativeChannelService _native;

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:mini/constants/colors.dart';
+import 'package:auraless/constants/colors.dart';
 
 /// TerminalInput: a single-line input with a fixed prompt prefix (" > ")
 /// - autocorrect and suggestions disabled

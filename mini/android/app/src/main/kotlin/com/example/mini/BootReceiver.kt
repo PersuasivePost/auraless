@@ -1,4 +1,4 @@
-package com.example.mini
+package com.auraless.app
 
 import android.content.BroadcastReceiver
 import android.content.Context

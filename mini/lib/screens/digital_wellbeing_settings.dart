@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mini/core/hive_service.dart';
+import 'package:auraless/core/hive_service.dart';
 
 class DigitalWellbeingSettings extends StatefulWidget {
   const DigitalWellbeingSettings({super.key});

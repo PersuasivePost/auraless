@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:mini/core/native_channel_service.dart';
+import 'package:auraless/core/native_channel_service.dart';
 
 class UsageEntry {
   final String packageName;

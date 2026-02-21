@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mini/core/native_channel_service.dart';
+import 'package:auraless/core/native_channel_service.dart';
 import '../colors.dart';
 
 class NotificationAccessPage extends StatefulWidget {

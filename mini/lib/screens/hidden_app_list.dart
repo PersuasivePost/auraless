@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:mini/core/native_channel_service.dart';
-import 'package:mini/constants/colors.dart';
+import 'package:auraless/core/native_channel_service.dart';
+import 'package:auraless/constants/colors.dart';
 
 class HiddenAppList extends StatefulWidget {
   const HiddenAppList({super.key});

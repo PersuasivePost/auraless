@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:mini/core/native_channel_service.dart' as svc;
-import 'package:mini/providers/lifecycle_provider.dart';
+import 'package:auraless/core/native_channel_service.dart' as svc;
+import 'package:auraless/providers/lifecycle_provider.dart';
 
 class SystemInfoPanel extends StatefulWidget {
   const SystemInfoPanel({super.key});

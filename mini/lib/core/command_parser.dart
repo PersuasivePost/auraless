@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:mini/core/native_channel_service.dart';
-import 'package:mini/providers/terminal_history_provider.dart';
-import 'package:mini/screens/settings_screen.dart';
-import 'package:mini/screens/setup_wizard.dart';
+import 'package:auraless/core/native_channel_service.dart';
+import 'package:auraless/providers/terminal_history_provider.dart';
+import 'package:auraless/screens/settings_screen.dart';
+import 'package:auraless/screens/setup_wizard.dart';
 // ...existing code...
-import 'package:mini/screens/usage_stats_screen.dart';
-import 'package:mini/providers/usage_stats_provider.dart';
+import 'package:auraless/screens/usage_stats_screen.dart';
+import 'package:auraless/providers/usage_stats_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class CommandParser {

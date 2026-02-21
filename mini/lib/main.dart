@@ -71,7 +71,7 @@ class _LauncherAppState extends State<LauncherApp> with WidgetsBindingObserver {
         ChangeNotifierProvider(create: (_) => TerminalHistoryProvider()),
       ],
       child: MaterialApp(
-        title: 'Mini',
+        title: 'AuraLess',
         theme: ThemeData.dark(),
         home:
             HiveService.getSetting('isSetupComplete', defaultValue: false) ==

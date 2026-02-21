@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
-import 'package:mini/core/native_channel_service.dart';
-import 'package:mini/providers/terminal_history_provider.dart';
+import 'package:auraless/core/native_channel_service.dart';
+import 'package:auraless/providers/terminal_history_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 // small struct for tracked permissions

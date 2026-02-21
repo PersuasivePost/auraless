@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../colors.dart';
-import 'package:mini/core/hive_service.dart';
-import 'package:mini/core/native_channel_service.dart';
+import 'package:auraless/core/hive_service.dart';
+import 'package:auraless/core/native_channel_service.dart';
 
 class CompletePage extends StatefulWidget {
   final VoidCallback onFinish;

@@ -1,4 +1,4 @@
-package com.example.mini
+package com.auraless.app
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
@@ -30,7 +30,7 @@ class MindfulAccessibilityService : AccessibilityService() {
                     // Launch the MindfulDelayActivity with the package name
                     val prefs2 = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                     val delay = prefs2.getInt("mindful_delay_seconds", 30)
-                    val i = Intent(this, Class.forName("com.example.mini.MindfulDelayActivity"))
+                    val i = Intent(this, Class.forName("com.auraless.app.MindfulDelayActivity"))
                     i.putExtra("packageName", pkg)
                     i.putExtra("mindful_delay_seconds", delay)
                     i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

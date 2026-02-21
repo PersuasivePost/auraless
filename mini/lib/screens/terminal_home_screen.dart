@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive/hive.dart';
 
-import 'package:mini/constants/colors.dart';
-import 'package:mini/features/terminal/widgets/system_info_panel.dart';
-import 'package:mini/features/terminal/widgets/terminal_input.dart';
-import 'package:mini/core/command_parser.dart';
-import 'package:mini/core/native_channel_service.dart';
-import 'package:mini/providers/terminal_history_provider.dart';
-import 'package:mini/screens/settings_screen.dart';
+import 'package:auraless/constants/colors.dart';
+import 'package:auraless/features/terminal/widgets/system_info_panel.dart';
+import 'package:auraless/features/terminal/widgets/terminal_input.dart';
+import 'package:auraless/core/command_parser.dart';
+import 'package:auraless/core/native_channel_service.dart';
+import 'package:auraless/providers/terminal_history_provider.dart';
+import 'package:auraless/screens/settings_screen.dart';
 
 class TerminalHomeScreen extends StatefulWidget {
   const TerminalHomeScreen({super.key});

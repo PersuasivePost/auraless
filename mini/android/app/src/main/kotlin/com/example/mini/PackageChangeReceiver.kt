@@ -1,4 +1,4 @@
-package com.example.mini
+package com.auraless.app
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -26,7 +26,7 @@ class PackageChangeReceiver : BroadcastReceiver() {
             prefs.edit().putString("pending_package_event", json).apply()
 
             // Broadcast an internal intent so MainActivity (if running) can forward immediately
-            val i = Intent("com.example.mini.PACKAGE_CHANGED_INTERNAL")
+            val i = Intent("com.auraless.app.PACKAGE_CHANGED_INTERNAL")
             i.putExtra("event", eventType)
             i.putExtra("packageName", pkg)
             context.sendBroadcast(i)

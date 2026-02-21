@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:mini/core/native_channel_service.dart';
+import 'package:auraless/core/native_channel_service.dart';
 import '../colors.dart';
 
 class AdbGrayscalePage extends StatefulWidget {

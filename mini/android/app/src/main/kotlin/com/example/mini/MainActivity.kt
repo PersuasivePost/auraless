@@ -1,4 +1,4 @@
-package com.example.mini
+package com.auraless.app
 
 import android.app.ActivityManager
 import android.content.Context
@@ -56,7 +56,7 @@ class MainActivity : FlutterActivity() {
 				} catch (e: Exception) { }
 			}
 		}
-		val internalFilter = android.content.IntentFilter("com.example.mini.PACKAGE_CHANGED_INTERNAL")
+	val internalFilter = android.content.IntentFilter("com.auraless.app.PACKAGE_CHANGED_INTERNAL")
 		// Android 13+ requires specifying receiver exportedness when registering non-system receivers.
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 			registerReceiver(br, internalFilter, Context.RECEIVER_NOT_EXPORTED)

@@ -1,4 +1,4 @@
-package com.example.mini
+package com.auraless.app
 
 import android.content.Context
 import android.service.notification.NotificationListenerService
