@@ -14,6 +14,8 @@ import android.widget.Toast
 class MindfulDelayActivity : Activity() {
     private var timer: CountDownTimer? = null
     private var timerFinished = false
+    private var remainingMillis: Long = 0L
+    private var timerRunning: Boolean = false
 
     private lateinit var countdownText: TextView
     private lateinit var appLabelText: TextView
@@ -87,19 +89,41 @@ class MindfulDelayActivity : Activity() {
 
         setContentView(root)
 
-        timer = object : CountDownTimer((delay * 1000).toLong(), 1000) {
+        // restore state if available
+        if (savedInstanceState != null) {
+            timerFinished = savedInstanceState.getBoolean("timerFinished", false)
+            remainingMillis = savedInstanceState.getLong("remainingMillis", (delay * 1000).toLong())
+        } else {
+            remainingMillis = (delay * 1000).toLong()
+        }
+
+        if (timerFinished) {
+            countdownText.visibility = View.GONE
+            buttonsLayout.visibility = View.VISIBLE
+        } else {
+            startTimer(remainingMillis)
+        }
+    }
+
+    private fun startTimer(ms: Long) {
+        timer?.cancel()
+        timer = object : CountDownTimer(ms, 1000) {
             override fun onTick(millisUntilFinished: Long) {
+                remainingMillis = millisUntilFinished
                 val s = millisUntilFinished / 1000
                 countdownText.text = "Mindful delay: $s s"
+                timerRunning = true
             }
 
             override fun onFinish() {
                 timerFinished = true
+                timerRunning = false
                 countdownText.visibility = View.GONE
                 buttonsLayout.visibility = View.VISIBLE
             }
         }
         timer?.start()
+        timerRunning = true
     }
 
     private fun getAppLabel(pkg: String?): String {
@@ -124,5 +148,32 @@ class MindfulDelayActivity : Activity() {
     override fun onDestroy() {
         super.onDestroy()
         timer?.cancel()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // pause the countdown and remember remaining time
+        if (timerRunning) {
+            timer?.cancel()
+            timerRunning = false
+            // remainingMillis already updated in onTick
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // resume timer if it wasn't finished
+        if (!timerFinished && !timerRunning) {
+            // if remainingMillis is zero, nothing to do
+            if (remainingMillis > 0L) {
+                startTimer(remainingMillis)
+            }
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("timerFinished", timerFinished)
+        outState.putLong("remainingMillis", remainingMillis)
     }
 }

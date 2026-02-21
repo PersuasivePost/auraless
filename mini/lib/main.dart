@@ -6,6 +6,8 @@ import 'core/hive_service.dart';
 import 'providers/lifecycle_provider.dart';
 import 'core/native_channel_service.dart';
 import 'providers/usage_stats_provider.dart';
+import 'providers/apps_provider.dart';
+import 'providers/terminal_history_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +23,7 @@ class LauncherApp extends StatefulWidget {
 }
 
 class _LauncherAppState extends State<LauncherApp> with WidgetsBindingObserver {
+  bool _checksStarted = false;
   @override
   void initState() {
     super.initState();
@@ -64,6 +67,8 @@ class _LauncherAppState extends State<LauncherApp> with WidgetsBindingObserver {
       providers: [
         ChangeNotifierProvider(create: (_) => LifecycleProvider()),
         ChangeNotifierProvider(create: (_) => UsageStatsProvider(native)),
+        ChangeNotifierProvider(create: (_) => AppsProvider(native)),
+        ChangeNotifierProvider(create: (_) => TerminalHistoryProvider()),
       ],
       child: MaterialApp(
         title: 'Mini',
@@ -75,6 +80,27 @@ class _LauncherAppState extends State<LauncherApp> with WidgetsBindingObserver {
             : const SetupWizard(),
       ),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_checksStarted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          final lifecycle = Provider.of<LifecycleProvider>(
+            context,
+            listen: false,
+          );
+          final history = Provider.of<TerminalHistoryProvider>(
+            context,
+            listen: false,
+          );
+          lifecycle.startPeriodicChecks(history);
+          _checksStarted = true;
+        } catch (_) {}
+      });
+    }
   }
 }
 

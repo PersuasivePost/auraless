@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 
 class NativeChannelService {
   static const MethodChannel _appChannel = MethodChannel('app_channel');
+  static const MethodChannel _packageChannel = MethodChannel('package_channel');
+  static const MethodChannel _batteryChannel = MethodChannel('battery_channel');
   static const MethodChannel _sysChannel = MethodChannel('system_info_channel');
   static const MethodChannel _usageChannel = MethodChannel(
     'usage_stats_channel',
@@ -22,6 +24,26 @@ class NativeChannelService {
         .map((m) => Map<String, dynamic>.from(m))
         .toList();
   }
+
+  // Package change events stream
+  final StreamController<Map<String, String>> _packageStreamController =
+      StreamController.broadcast();
+
+  NativeChannelService() {
+    _packageChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onPackageChanged') {
+        final args = call.arguments as Map?;
+        if (args != null) {
+          final event = args['event']?.toString() ?? '';
+          final pkg = args['packageName']?.toString() ?? '';
+          _packageStreamController.add({'event': event, 'packageName': pkg});
+        }
+      }
+    });
+  }
+
+  Stream<Map<String, String>> get packageEvents =>
+      _packageStreamController.stream;
 
   Future<bool> launchApp(String packageName) async {
     final res = await _appChannel.invokeMethod('launchApp', packageName);
@@ -197,5 +219,20 @@ class NativeChannelService {
       'notification_channel',
     ).invokeMethod('isNotificationListenerEnabled');
     return res == true;
+  }
+
+  Future<bool> isIgnoringBatteryOptimizations() async {
+    try {
+      final res = await _batteryChannel.invokeMethod(
+        'isIgnoringBatteryOptimizations',
+      );
+      return res == true;
+    } on PlatformException catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> openBatteryOptimizationSettings() async {
+    await _batteryChannel.invokeMethod('openBatteryOptimizationSettings');
   }
 }

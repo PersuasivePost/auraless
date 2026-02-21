@@ -36,8 +36,43 @@ class MainActivity : FlutterActivity() {
 	private val BLOCKED_CHANNEL = "blocked_apps_channel"
 	private val NOTIF_CHANNEL = "notification_channel"
 
+	private val PACKAGE_CHANNEL = "package_channel"
+	private val BATTERY_CHANNEL = "battery_channel"
+
 	override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
 		super.configureFlutterEngine(flutterEngine)
+
+		// Package channel - forwards install/uninstall/replace events
+		val packageChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PACKAGE_CHANNEL)
+
+		// Register a local receiver to pick up internal broadcasts from PackageChangeReceiver
+		val br = object : android.content.BroadcastReceiver() {
+			override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+				try {
+					val ev = intent?.getStringExtra("event") ?: return
+					val pkg = intent.getStringExtra("packageName") ?: return
+					val args = mapOf("event" to ev, "packageName" to pkg)
+					packageChannel.invokeMethod("onPackageChanged", args)
+				} catch (e: Exception) { }
+			}
+		}
+		registerReceiver(br, android.content.IntentFilter("com.example.mini.PACKAGE_CHANGED_INTERNAL"))
+
+		// If there is a pending event saved by the receiver before Flutter was ready, forward it now
+		try {
+			val prefs = getSharedPreferences("mindful_prefs", Context.MODE_PRIVATE)
+			val pending = prefs.getString("pending_package_event", "") ?: ""
+			if (pending.isNotEmpty()) {
+				// parse crude json: {"event":"added","packageName":"pkg"}
+				val ev = Regex("\"event\":\"(.*?)\"").find(pending)?.groups?.get(1)?.value ?: ""
+				val pkg = Regex("\"packageName\":\"(.*?)\"").find(pending)?.groups?.get(1)?.value ?: ""
+				if (ev.isNotEmpty() && pkg.isNotEmpty()) {
+					val args = mapOf("event" to ev, "packageName" to pkg)
+					packageChannel.invokeMethod("onPackageChanged", args)
+				}
+				prefs.edit().remove("pending_package_event").apply()
+			}
+		} catch (e: Exception) { }
 
 		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_CHANNEL).setMethodCallHandler { call, result ->
 			when (call.method) {
@@ -68,6 +103,27 @@ class MainActivity : FlutterActivity() {
 					} else {
 						result.error("INVALID_ARGS", "packageName missing", null)
 					}
+				}
+				else -> result.notImplemented()
+			}
+		}
+
+		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BATTERY_CHANNEL).setMethodCallHandler { call, result ->
+			when (call.method) {
+				"isIgnoringBatteryOptimizations" -> {
+					try {
+						val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+						val ignoring = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) pm.isIgnoringBatteryOptimizations(applicationContext.packageName) else true
+						result.success(ignoring)
+					} catch (e: Exception) { result.error("ERROR", e.localizedMessage, null) }
+				}
+				"openBatteryOptimizationSettings" -> {
+					try {
+						val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+						intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+						startActivity(intent)
+						result.success(null)
+					} catch (e: Exception) { result.error("ERROR", e.localizedMessage, null) }
 				}
 				else -> result.notImplemented()
 			}

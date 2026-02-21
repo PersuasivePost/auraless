@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mini/core/native_channel_service.dart';
 import 'package:mini/providers/terminal_history_provider.dart';
 import 'package:mini/screens/settings_screen.dart';
+import 'package:mini/screens/setup_wizard.dart';
 // ...existing code...
 import 'package:mini/screens/usage_stats_screen.dart';
 import 'package:mini/providers/usage_stats_provider.dart';
@@ -81,6 +82,15 @@ class CommandParser {
         case 'settings':
           _cmdSettings();
           break;
+        case 'battery':
+          await _cmdBattery(args);
+          break;
+        case 'battery_optimization':
+          await _cmdBattery(args);
+          break;
+        case 'setup':
+          _cmdSetup();
+          break;
         case 'clear':
           historyProvider.clear();
           break;
@@ -108,6 +118,8 @@ class CommandParser {
       'grayscale - placeholder',
       'alias - manage aliases',
       'settings - open settings',
+      'battery - check battery optimization state (use "battery open" to open settings)',
+      'battery_optimization - alias for battery',
       'clear - clear terminal',
     ];
     for (var l in lines) {
@@ -215,6 +227,14 @@ class CommandParser {
       context,
     ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
     historyProvider.addOutput('Opened settings (placeholder)');
+  }
+
+  void _cmdSetup() {
+    // Re-run the setup wizard
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const SetupWizard()));
+    historyProvider.addOutput('Reopened setup wizard');
   }
 
   void _cmdUsage() {
@@ -523,6 +543,34 @@ class CommandParser {
           : (found['name'] ?? e.packageName);
       historyProvider.addOutput('$i. $name – $label');
       if (i >= 50) break; // safety
+    }
+  }
+
+  Future<void> _cmdBattery(List<String> args) async {
+    try {
+      final ignoring = await native.isIgnoringBatteryOptimizations().catchError(
+        (_) => true,
+      );
+      if (ignoring) {
+        historyProvider.addOutput(
+          'Device is ignoring battery optimizations for this app (ok)',
+        );
+        return;
+      }
+      historyProvider.addOutput(
+        'Battery optimizations may affect background behavior.',
+      );
+      // if args contains 'open' or user confirms, open settings
+      if (args.isNotEmpty && (args[0] == 'open' || args[0] == 'settings')) {
+        await native.openBatteryOptimizationSettings();
+        historyProvider.addOutput('Opened battery optimization settings');
+        return;
+      }
+      historyProvider.addOutput(
+        'Run: battery open   to open battery optimization settings',
+      );
+    } catch (e) {
+      historyProvider.addError('Battery check failed: ${e.toString()}');
     }
   }
 }
