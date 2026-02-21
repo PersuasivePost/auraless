@@ -5,6 +5,8 @@ import 'package:hive/hive.dart';
 import 'package:mini/constants/colors.dart';
 import 'package:mini/features/terminal/widgets/system_info_panel.dart';
 import 'package:mini/features/terminal/widgets/terminal_input.dart';
+import 'package:mini/core/command_parser.dart';
+import 'package:mini/core/native_channel_service.dart';
 import 'package:mini/providers/terminal_history_provider.dart';
 import 'package:mini/screens/settings_screen.dart';
 
@@ -230,14 +232,21 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
                 child: TerminalInput(
                   controller: _inputController,
                   onShowHistory: _showRecentCommands,
-                  onCommandSubmitted: (cmd) {
+                  onCommandSubmitted: (cmd) async {
                     final provider = Provider.of<TerminalHistoryProvider>(
                       context,
                       listen: false,
                     );
                     provider.addCommand(cmd);
-                    // placeholder output
-                    provider.addOutput('Executed: $cmd');
+
+                    // Execute the command using CommandParser so commands run real logic
+                    final native = NativeChannelService();
+                    final parser = CommandParser(
+                      context: context,
+                      native: native,
+                      historyProvider: provider,
+                    );
+                    await parser.execute(cmd);
                   },
                 ),
               ),

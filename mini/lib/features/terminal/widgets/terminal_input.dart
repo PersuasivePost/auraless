@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mini/constants/colors.dart';
 
 /// TerminalInput: a single-line input with a fixed prompt prefix (" > ")
@@ -74,7 +75,11 @@ class _TerminalInputState extends State<TerminalInput> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: () => _focusNode.requestFocus(),
+              onTap: () {
+                _focusNode.requestFocus();
+                // ensure IME opens when focus is requested
+                SystemChannels.textInput.invokeMethod('TextInput.show');
+              },
               child: Row(
                 children: [
                   Expanded(

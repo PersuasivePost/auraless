@@ -115,14 +115,14 @@ class NativeChannelService {
 
   Future<bool> isAccessibilityServiceEnabled() async {
     final res = await MethodChannel(
-      'blocked_apps_channel',
+      'accessibility_check_channel',
     ).invokeMethod('isAccessibilityServiceEnabled');
     return res == true;
   }
 
   Future<void> openAccessibilitySettings() async {
     await MethodChannel(
-      'blocked_apps_channel',
+      'accessibility_check_channel',
     ).invokeMethod('openAccessibilitySettings');
   }
 

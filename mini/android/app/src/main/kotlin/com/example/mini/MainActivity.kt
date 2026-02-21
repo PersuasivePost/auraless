@@ -310,6 +310,16 @@ class MainActivity : FlutterActivity() {
 						result.error("ERROR", e.localizedMessage, null)
 					}
 				}
+				"openAccessibilitySettings" -> {
+					try {
+						val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+						intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+						startActivity(intent)
+						result.success(null)
+					} catch (e: Exception) {
+						result.error("ERROR", e.localizedMessage, null)
+					}
+				}
 				else -> result.notImplemented()
 			}
 		}
@@ -535,5 +545,21 @@ class MainActivity : FlutterActivity() {
 	override fun onNewIntent(intent: Intent) {
 		super.onNewIntent(intent)
 		setIntent(intent)
+	}
+
+	override fun onTaskRemoved(rootIntent: Intent) {
+		super.onTaskRemoved(rootIntent)
+		// Try to immediately restart the launcher activity if the task is removed
+		try {
+			val restartIntent = Intent(applicationContext, MainActivity::class.java)
+			restartIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+			applicationContext.startActivity(restartIntent)
+		} catch (e: Exception) {
+			// ignore
+		}
+	}
+
+	override fun onBackPressed() {
+		// Do nothing to prevent leaving the launcher via back button
 	}
 }
