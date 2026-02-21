@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'colors.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +29,7 @@ class SettingsScreen extends StatelessWidget {
       body: ListView.separated(
         padding: const EdgeInsets.all(12),
         itemCount: categories.length,
-        separatorBuilder: (_, __) =>
+        separatorBuilder: (context, index) =>
             const Divider(color: Colors.transparent, height: 8),
         itemBuilder: (context, index) {
           final name = categories[index];

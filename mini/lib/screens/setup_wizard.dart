@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'colors.dart';
 
 class SetupWizard extends StatefulWidget {
-  const SetupWizard({Key? key}) : super(key: key);
+  const SetupWizard({super.key});
 
   @override
   State<SetupWizard> createState() => _SetupWizardState();
@@ -56,11 +56,12 @@ class _SetupWizardState extends State<SetupWizard> {
                 style: ElevatedButton.styleFrom(backgroundColor: kDimGreen),
                 onPressed: () {
                   final previous = _controller.page?.toInt() ?? 0;
-                  if (previous > 0)
+                  if (previous > 0) {
                     _controller.previousPage(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
                     );
+                  }
                 },
                 child: const Text('Back'),
               ),
@@ -68,11 +69,12 @@ class _SetupWizardState extends State<SetupWizard> {
                 style: ElevatedButton.styleFrom(backgroundColor: kAccentGreen),
                 onPressed: () {
                   final next = _controller.page?.toInt() ?? 0;
-                  if (next < 7)
+                  if (next < 7) {
                     _controller.nextPage(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
                     );
+                  }
                 },
                 child: const Text('Next'),
               ),

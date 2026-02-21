@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/terminal_home_screen.dart';
 import 'providers/lifecycle_provider.dart';
+import 'core/hive_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await HiveService.init();
   runApp(const LauncherApp());
 }
 
 class LauncherApp extends StatefulWidget {
-  const LauncherApp({Key? key}) : super(key: key);
+  const LauncherApp({super.key});
 
   @override
   State<LauncherApp> createState() => _LauncherAppState();
@@ -64,11 +67,12 @@ class _LauncherAppState extends State<LauncherApp> with WidgetsBindingObserver {
 }
 
 class MainScreen extends StatelessWidget {
-  const MainScreen({Key? key}) : super(key: key);
+  const MainScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     // Swallow back button when on the terminal screen using WillPopScope
+    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async {
         // Do nothing when back is pressed (swallow event)

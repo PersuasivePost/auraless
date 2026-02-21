@@ -1,170 +1,227 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'colors.dart';
+import 'package:provider/provider.dart';
+
+import 'package:mini/constants/colors.dart';
+import 'package:mini/features/terminal/widgets/system_info_panel.dart';
+import 'package:mini/features/terminal/widgets/terminal_input.dart';
+import 'package:mini/providers/terminal_history_provider.dart';
+import 'package:mini/screens/settings_screen.dart';
 
 class TerminalHomeScreen extends StatefulWidget {
-  const TerminalHomeScreen({Key? key}) : super(key: key);
+  const TerminalHomeScreen({super.key});
 
   @override
   State<TerminalHomeScreen> createState() => _TerminalHomeScreenState();
 }
 
 class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
-  final List<String> _history = List<String>.generate(
-    20,
-    (i) => i % 5 == 0 ? 'Error: failed to run command #$i' : 'Output line #$i',
-  );
-  final TextEditingController _controller = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
-  bool _showCursor = true;
-  Timer? _cursorTimer;
+  final ScrollController _scrollController = ScrollController();
+  bool _listening = false;
+  final TextEditingController _inputController = TextEditingController();
+  OverlayEntry? _overlayEntry;
+
+  void _showRecentCommands() {
+    if (_overlayEntry != null) return;
+    final provider = Provider.of<TerminalHistoryProvider>(
+      context,
+      listen: false,
+    );
+    final recent = provider.commandHistory.reversed.take(5).toList();
+    final overlay = Overlay.of(context);
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
+        return Positioned.fill(
+          child: GestureDetector(
+            onTap: _removeOverlay,
+            child: Container(
+              color: Colors.transparent,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    bottom: 80,
+                    child: Material(
+                      color: background,
+                      elevation: 12,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: recent.map((c) {
+                            return InkWell(
+                              onTap: () {
+                                _inputController.text = c;
+                                _inputController.selection =
+                                    TextSelection.fromPosition(
+                                      TextPosition(offset: c.length),
+                                    );
+                                _removeOverlay();
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  c,
+                                  style: TextStyle(
+                                    color: primaryGreen,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    overlay.insert(_overlayEntry!);
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
 
   @override
-  void initState() {
-    super.initState();
-    _cursorTimer = Timer.periodic(const Duration(milliseconds: 600), (t) {
-      setState(() => _showCursor = !_showCursor);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_listening) {
+      final provider = Provider.of<TerminalHistoryProvider>(context);
+      provider.addListener(_onHistoryUpdated);
+      _listening = true;
+    }
+  }
+
+  void _onHistoryUpdated() {
+    // scroll to bottom (reverse: true uses offset 0)
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0.0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
   @override
   void dispose() {
-    _cursorTimer?.cancel();
-    _controller.dispose();
-    _focusNode.dispose();
+    if (_listening) {
+      try {
+        Provider.of<TerminalHistoryProvider>(
+          context,
+          listen: false,
+        ).removeListener(_onHistoryUpdated);
+      } catch (_) {}
+    }
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBackgroundColor,
+      backgroundColor: background,
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      // Placeholder system info
-                      '12:34  •  85%  •  Wi‑Fi',
-                      style: TextStyle(
-                        color: kPrimaryGreen,
-                        fontFamily: 'monospace',
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  // small accent marker
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: kAccentGreen,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ],
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          onLongPress: () {
+            // Navigate to settings on long press anywhere on the terminal
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Column(
+            children: [
+              // System info panel
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: SystemInfoPanel(),
               ),
-            ),
-            const Divider(color: Colors.transparent, height: 4),
-            // History
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: _history.length,
-                itemBuilder: (context, index) {
-                  final text = _history[index];
-                  final isError = text.startsWith('Error');
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text(
-                      text,
-                      style: TextStyle(
-                        color: isError ? kErrorRed : kOutputGreen,
-                        fontFamily: 'monospace',
-                        fontSize: 13,
+              const Divider(color: Colors.transparent, height: 4),
+
+              // History
+              Expanded(
+                child: Consumer<TerminalHistoryProvider>(
+                  builder: (context, history, _) {
+                    final entries = history.entries;
+                    return ListView.builder(
+                      controller: _scrollController,
+                      reverse: true,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            // Input line
-            Container(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-              color: kBackgroundColor,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    '> ',
-                    style: TextStyle(
-                      color: kPrimaryGreen,
-                      fontFamily: 'monospace',
-                      fontSize: 16,
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        // manual keyboard activation
-                        _focusNode.requestFocus();
+                      itemCount: entries.length,
+                      itemBuilder: (context, index) {
+                        // when reverse is true, show from the end
+                        final entry = entries[entries.length - 1 - index];
+                        Color color;
+                        switch (entry.type) {
+                          case 'command':
+                            color = primaryGreen;
+                            break;
+                          case 'error':
+                            color = errorRed;
+                            break;
+                          default:
+                            color = outputGreen;
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            entry.text,
+                            style: TextStyle(
+                              color: color,
+                              fontFamily: 'monospace',
+                              fontSize: 13,
+                            ),
+                          ),
+                        );
                       },
-                      child: AbsorbPointer(
-                        absorbing: false,
-                        child: TextField(
-                          controller: _controller,
-                          focusNode: _focusNode,
-                          style: const TextStyle(
-                            color: Colors.transparent,
-                            height: 0.1,
-                          ),
-                          cursorColor: kPrimaryGreen,
-                          cursorWidth: 2,
-                          showCursor: false,
-                          decoration: const InputDecoration.collapsed(
-                            hintText: null,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Visual input + blinking cursor
-                  Container(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Row(
-                      children: [
-                        // visible text (mirror)
-                        Text(
-                          _controller.text,
-                          style: TextStyle(
-                            color: kPrimaryGreen,
-                            fontFamily: 'monospace',
-                            fontSize: 16,
-                          ),
-                        ),
-                        // blinking cursor
-                        AnimatedOpacity(
-                          opacity: _showCursor ? 1.0 : 0.0,
-                          duration: const Duration(milliseconds: 200),
-                          child: Container(
-                            margin: const EdgeInsets.only(left: 4),
-                            width: 10,
-                            height: 20,
-                            color: kPrimaryGreen,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+
+              // Input anchored at bottom
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                color: background,
+                child: TerminalInput(
+                  controller: _inputController,
+                  onShowHistory: _showRecentCommands,
+                  onCommandSubmitted: (cmd) {
+                    final provider = Provider.of<TerminalHistoryProvider>(
+                      context,
+                      listen: false,
+                    );
+                    provider.addCommand(cmd);
+                    // placeholder output
+                    provider.addOutput('Executed: $cmd');
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -5,8 +5,11 @@ class RecentCommandsPopup extends StatelessWidget {
   final List<String> commands;
   final VoidCallback? onDismiss;
 
-  const RecentCommandsPopup({Key? key, required this.commands, this.onDismiss})
-    : super(key: key);
+  const RecentCommandsPopup({
+    super.key,
+    required this.commands,
+    this.onDismiss,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +20,9 @@ class RecentCommandsPopup extends StatelessWidget {
           child: GestureDetector(
             onTap: () {
               Navigator.of(context).pop();
-              if (onDismiss != null) onDismiss!();
+              if (onDismiss != null) {
+                onDismiss!();
+              }
             },
             child: Container(color: Colors.transparent),
           ),

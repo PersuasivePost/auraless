@@ -8,10 +8,10 @@ class MindfulDelayScreen extends StatefulWidget {
   final int seconds;
 
   const MindfulDelayScreen({
-    Key? key,
+    super.key,
     this.appName = 'Target App',
     this.seconds = 30,
-  }) : super(key: key);
+  });
 
   @override
   State<MindfulDelayScreen> createState() => _MindfulDelayScreenState();
@@ -46,6 +46,7 @@ class _MindfulDelayScreenState extends State<MindfulDelayScreen> {
   Widget build(BuildContext context) {
     final progress = 1.0 - (_remaining / widget.seconds);
 
+    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async {
         // disable back while timer running

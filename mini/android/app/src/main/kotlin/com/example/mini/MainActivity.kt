@@ -107,7 +107,7 @@ class MainActivity : FlutterActivity() {
 		val storage = getStorageInfo()
 		val network = getNetworkType()
 		val kernel = getKernelVersion()
-		val uptimeMs = SystemClock.elapsedRealtime()
+		val uptimeMinutes = SystemClock.elapsedRealtime() / 60000
 
 		return mapOf(
 			"model" to Build.MODEL,
@@ -115,7 +115,7 @@ class MainActivity : FlutterActivity() {
 			"androidVersion" to Build.VERSION.RELEASE,
 			"apiLevel" to Build.VERSION.SDK_INT,
 			"kernelVersion" to kernel,
-			"uptimeMs" to uptimeMs,
+			"uptimeMinutes" to uptimeMinutes,
 			"batteryPercent" to battery,
 			"ramUsed" to ram["used"],
 			"ramTotal" to ram["total"],
