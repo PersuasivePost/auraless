@@ -114,6 +114,9 @@ class CommandParser {
       'help - list commands',
       'open <app name or package> - launch app',
       'call <contact> - call a contact by name',
+      'call set <name> <phone> - create or update contact alias',
+      'call unset <name> - remove contact alias',
+      'call list - list contact aliases',
       'search <query> - open a web search for the query',
       'ls - list installed apps',
       // removed 'top' command (use 'stats' instead)
@@ -242,13 +245,81 @@ class CommandParser {
   Future<void> _cmdCall(List<String> args) async {
     if (args.isEmpty) {
       historyProvider.addError(
-        'Missing contact name. Usage: call <name>. Example: call Alice',
+        'Missing contact name or subcommand. Usage: call <name> OR call set|unset|list',
       );
       return;
     }
+
+    // handle subcommands: set/unset/list
+    final sub = args[0].toLowerCase();
+    if (sub == 'set') {
+      if (args.length < 3) {
+        historyProvider.addError('Usage: call set <name> <phone>');
+        return;
+      }
+      final name = args[1];
+      final phoneRaw = args.sublist(2).join(' ');
+      final digits = phoneRaw.replaceAll(RegExp(r'[^0-9+]'), '');
+      if (digits.replaceAll(RegExp(r'[^0-9]'), '').isEmpty) {
+        historyProvider.addError('Invalid phone number. Must contain digits.');
+        return;
+      }
+      await HiveService.putContactAlias(name, digits);
+      historyProvider.addOutput('Contact alias set: $name => $digits');
+      return;
+    }
+    if (sub == 'unset') {
+      if (args.length < 2) {
+        historyProvider.addError('Usage: call unset <name>');
+        return;
+      }
+      final name = args[1];
+      final map = HiveService.getContactAliases();
+      if (!map.containsKey(name)) {
+        historyProvider.addError('No alias named "$name" found');
+        return;
+      }
+      await HiveService.removeContactAlias(name);
+      historyProvider.addOutput('Removed contact alias: $name');
+      return;
+    }
+    if (sub == 'list') {
+      final map = HiveService.getContactAliases();
+      if (map.isEmpty) {
+        historyProvider.addOutput('No contact aliases defined');
+        return;
+      }
+      map.forEach((k, v) => historyProvider.addOutput('$k => $v'));
+      return;
+    }
+
     final query = args.join(' ').trim();
 
-    // ensure permission
+    // First, check contact aliases in Hive
+    try {
+      final aliases = HiveService.getContactAliases();
+      if (aliases.containsKey(query)) {
+        var raw = aliases[query] ?? '';
+        final sanitized = raw.replaceAll(RegExp(r'[^0-9+]'), '');
+        if (sanitized.replaceAll(RegExp(r'[^0-9]'), '').isEmpty) {
+          historyProvider.addError(
+            'Alias "$query" has an invalid number. Please reset with: call set $query <phone>',
+          );
+          return;
+        }
+        final ok = await native.openDialer(sanitized);
+        if (ok) {
+          historyProvider.addOutput('Calling $query via alias: $sanitized');
+        } else {
+          historyProvider.addError('Failed to open dialer for $sanitized');
+        }
+        return;
+      }
+    } catch (_) {
+      // ignore hive errors and fall back to contact search
+    }
+
+    // Not an alias: fall back to native contact search (requires permission)
     var status = await Permission.contacts.status;
     if (!status.isGranted) {
       final req = await Permission.contacts.request();
@@ -269,17 +340,18 @@ class CommandParser {
       final first = results.first;
       final number = first['number']?.toString() ?? '';
       final name = first['name'] ?? number;
-      if (number.isEmpty) {
+      final sanitized = number.replaceAll(RegExp(r'[^0-9+]'), '');
+      if (sanitized.replaceAll(RegExp(r'[^0-9]'), '').isEmpty) {
         historyProvider.addError(
           'Contact found but no phone number available for $name',
         );
         return;
       }
-      final ok = await native.openDialer(number);
+      final ok = await native.openDialer(sanitized);
       if (ok) {
-        historyProvider.addOutput('Opened dialer for $name ($number)');
+        historyProvider.addOutput('Opened dialer for $name ($sanitized)');
       } else {
-        historyProvider.addError('Failed to open dialer for $number');
+        historyProvider.addError('Failed to open dialer for $sanitized');
       }
     } catch (e) {
       historyProvider.addError('Failed to search contacts: ${e.toString()}');

@@ -124,4 +124,27 @@ class HiveService {
       notificationsBox.get('list', defaultValue: <dynamic>[]) as List<dynamic>;
   static Future<void> setNotifications(List<dynamic> list) async =>
       notificationsBox.put('list', list);
+
+  // Contact aliases: map of friendly name -> phone number
+  static Map<String, String> getContactAliases() {
+    final raw =
+        aliasesBox.get('contacts', defaultValue: <String, dynamic>{}) as Map?;
+    if (raw == null) return {};
+    return raw.map((k, v) => MapEntry(k.toString(), v.toString()));
+  }
+
+  static Future<void> setContactAliases(Map<String, String> map) async =>
+      aliasesBox.put('contacts', map);
+
+  static Future<void> putContactAlias(String key, String phone) async {
+    final map = getContactAliases();
+    map[key] = phone;
+    await setContactAliases(map);
+  }
+
+  static Future<void> removeContactAlias(String key) async {
+    final map = getContactAliases();
+    map.remove(key);
+    await setContactAliases(map);
+  }
 }
