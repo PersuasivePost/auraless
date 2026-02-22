@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'colors.dart';
+import 'package:provider/provider.dart';
+import 'package:auraless/providers/theme_provider.dart';
 import 'digital_wellbeing_settings.dart';
 import 'appearance_settings.dart';
 
@@ -17,14 +18,17 @@ class SettingsScreen extends StatelessWidget {
       'About',
     ];
 
+    final theme = Provider.of<ThemeProvider>(context);
+    final colors = theme.colors;
+
     return Scaffold(
-      backgroundColor: kBackgroundColor,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        backgroundColor: kBackgroundColor,
+        backgroundColor: colors.background,
         elevation: 0,
         title: Text(
           'Settings',
-          style: TextStyle(color: kPrimaryGreen, fontFamily: 'monospace'),
+          style: TextStyle(color: colors.primaryText, fontFamily: 'monospace'),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -36,13 +40,16 @@ class SettingsScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           final name = categories[index];
           return ListTile(
-            tileColor: kBackgroundColor,
+            tileColor: colors.background,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
             ),
             title: Text(
               name,
-              style: TextStyle(color: kPrimaryGreen, fontFamily: 'monospace'),
+              style: TextStyle(
+                color: colors.primaryText,
+                fontFamily: 'monospace',
+              ),
             ),
             onTap: () {
               if (name == 'Digital Wellbeing') {

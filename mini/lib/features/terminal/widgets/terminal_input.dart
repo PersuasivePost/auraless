@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:auraless/constants/colors.dart';
+import 'package:provider/provider.dart';
+import 'package:auraless/providers/theme_provider.dart';
 
 /// TerminalInput: a single-line input with a fixed prompt prefix (" > ")
 /// - autocorrect and suggestions disabled
@@ -59,16 +60,18 @@ class _TerminalInputState extends State<TerminalInput> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Provider.of<ThemeProvider>(context).colors;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      color: background,
+      color: colors.background,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             '> ',
             style: const TextStyle(
-              color: primaryGreen,
+              color: Colors.green,
               fontFamily: 'monospace',
               fontSize: 16,
             ),
@@ -87,11 +90,11 @@ class _TerminalInputState extends State<TerminalInput> {
                       controller: _controller,
                       focusNode: _focusNode,
                       style: const TextStyle(
-                        color: primaryGreen,
+                        color: Colors.green,
                         fontFamily: 'monospace',
                         fontSize: 16,
                       ),
-                      cursorColor: primaryGreen,
+                      cursorColor: colors.primaryText,
                       cursorWidth: 2,
                       autocorrect: false,
                       enableSuggestions: false,
@@ -105,7 +108,7 @@ class _TerminalInputState extends State<TerminalInput> {
                   // history toggle button
                   IconButton(
                     onPressed: widget.onShowHistory,
-                    icon: const Icon(Icons.history, color: primaryGreen),
+                    icon: Icon(Icons.history, color: colors.primaryText),
                     splashRadius: 20,
                     tooltip: 'Recent commands',
                   ),
@@ -117,7 +120,7 @@ class _TerminalInputState extends State<TerminalInput> {
                       margin: const EdgeInsets.only(left: 6),
                       width: 8,
                       height: 20,
-                      color: primaryGreen,
+                      color: colors.primaryText,
                     ),
                   ),
                 ],

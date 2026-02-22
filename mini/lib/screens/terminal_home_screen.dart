@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:hive/hive.dart';
+// Hive import removed — no startup welcome message or settings access needed here.
 
 import 'package:auraless/constants/colors.dart';
+import 'package:auraless/providers/theme_provider.dart';
 import 'package:auraless/features/terminal/widgets/system_info_panel.dart';
 import 'package:auraless/features/terminal/widgets/terminal_input.dart';
 import 'package:auraless/features/terminal/widgets/secret_swipe_detector.dart';
@@ -109,26 +110,7 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
       provider.addListener(_onHistoryUpdated);
       _listening = true;
     }
-    // show one-time welcome message after setup completes
-    try {
-      final settings = Hive.box('settings');
-      final isSetupComplete =
-          settings.get('isSetupComplete', defaultValue: false) as bool;
-      final welcomeShown =
-          settings.get('welcomeShown', defaultValue: false) as bool;
-      if (isSetupComplete && !welcomeShown) {
-        final provider = Provider.of<TerminalHistoryProvider>(
-          context,
-          listen: false,
-        );
-        provider.addOutput(
-          "Welcome to DevLauncher v1.0.0. Type 'help' to get started.",
-        );
-        settings.put('welcomeShown', true);
-      }
-    } catch (e) {
-      // Hive may not be initialized in tests; ignore failures
-    }
+    // No startup welcome message is shown on terminal by design.
   }
 
   void _onHistoryUpdated() {
@@ -161,8 +143,11 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
+    final colors = theme.colors;
+
     return Scaffold(
-      backgroundColor: background,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: SecretSwipeDetector(
           onSecretUnlocked: () {
@@ -204,13 +189,13 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
                           Color color;
                           switch (entry.type) {
                             case 'command':
-                              color = primaryGreen;
+                              color = colors.primaryText;
                               break;
                             case 'error':
-                              color = errorRed;
+                              color = colors.error;
                               break;
                             default:
-                              color = outputGreen;
+                              color = colors.outputText;
                           }
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 4),
@@ -231,7 +216,7 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
 
                 Container(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                  color: background,
+                  color: colors.background,
                   child: TerminalInput(
                     controller: _inputController,
                     onShowHistory: _showRecentCommands,

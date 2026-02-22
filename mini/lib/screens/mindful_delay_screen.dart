@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'colors.dart';
+import 'package:provider/provider.dart';
+import 'package:auraless/providers/theme_provider.dart';
 
 class MindfulDelayScreen extends StatefulWidget {
   final String appName;
@@ -46,6 +47,8 @@ class _MindfulDelayScreenState extends State<MindfulDelayScreen> {
   Widget build(BuildContext context) {
     final progress = 1.0 - (_remaining / widget.seconds);
 
+    final colors = Provider.of<ThemeProvider>(context).colors;
+
     // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async {
@@ -53,7 +56,7 @@ class _MindfulDelayScreenState extends State<MindfulDelayScreen> {
         return _remaining == 0;
       },
       child: Scaffold(
-        backgroundColor: kBackgroundColor,
+        backgroundColor: colors.background,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -63,7 +66,7 @@ class _MindfulDelayScreenState extends State<MindfulDelayScreen> {
                 Text(
                   widget.appName,
                   style: TextStyle(
-                    color: kPrimaryGreen,
+                    color: colors.primaryText,
                     fontSize: 32,
                     fontFamily: 'monospace',
                   ),
@@ -77,14 +80,14 @@ class _MindfulDelayScreenState extends State<MindfulDelayScreen> {
                     children: [
                       CircularProgressIndicator(
                         value: _remaining == 0 ? 1 : progress,
-                        color: kAccentGreen,
-                        backgroundColor: kDimGreen,
+                        color: colors.accent,
+                        backgroundColor: colors.dimText,
                         strokeWidth: 8,
                       ),
                       Text(
                         _remaining > 0 ? '$_remaining' : 'Ready',
                         style: TextStyle(
-                          color: kPrimaryGreen,
+                          color: colors.primaryText,
                           fontSize: 28,
                           fontFamily: 'monospace',
                         ),
@@ -99,7 +102,7 @@ class _MindfulDelayScreenState extends State<MindfulDelayScreen> {
                     children: [
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: kAccentGreen,
+                          backgroundColor: colors.accent,
                         ),
                         onPressed: () {
                           // placeholder: open the app
@@ -109,7 +112,7 @@ class _MindfulDelayScreenState extends State<MindfulDelayScreen> {
                       const SizedBox(width: 12),
                       OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: kPrimaryGreen,
+                          foregroundColor: colors.primaryText,
                         ),
                         onPressed: () {
                           // back to launcher

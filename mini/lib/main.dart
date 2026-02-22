@@ -8,6 +8,7 @@ import 'core/native_channel_service.dart';
 import 'providers/usage_stats_provider.dart';
 import 'providers/apps_provider.dart';
 import 'providers/terminal_history_provider.dart';
+import 'providers/theme_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,18 +67,32 @@ class _LauncherAppState extends State<LauncherApp> with WidgetsBindingObserver {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LifecycleProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => UsageStatsProvider(native)),
         ChangeNotifierProvider(create: (_) => AppsProvider(native)),
         ChangeNotifierProvider(create: (_) => TerminalHistoryProvider()),
       ],
-      child: MaterialApp(
-        title: 'AuraLess',
-        theme: ThemeData.dark(),
-        home:
-            HiveService.getSetting('isSetupComplete', defaultValue: false) ==
-                true
-            ? const MainScreen()
-            : const SetupWizard(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, theme, _) {
+          return MaterialApp(
+            title: 'AuraLess',
+            theme: ThemeData.light(),
+            darkTheme: ThemeData.dark(),
+            themeMode: theme.mode == AppThemeMode.system
+                ? ThemeMode.system
+                : (theme.mode == AppThemeMode.light
+                      ? ThemeMode.light
+                      : ThemeMode.dark),
+            home:
+                HiveService.getSetting(
+                      'isSetupComplete',
+                      defaultValue: false,
+                    ) ==
+                    true
+                ? const MainScreen()
+                : const SetupWizard(),
+          );
+        },
       ),
     );
   }

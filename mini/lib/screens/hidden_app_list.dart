@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:auraless/core/native_channel_service.dart';
 import 'package:auraless/constants/colors.dart';
+import 'package:provider/provider.dart';
+import 'package:auraless/providers/theme_provider.dart';
 
 class HiddenAppList extends StatefulWidget {
   const HiddenAppList({super.key});
@@ -81,17 +83,20 @@ class _HiddenAppListState extends State<HiddenAppList> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeProvider>(context);
+    final colors = theme.colors;
+
     return Scaffold(
-      backgroundColor: background,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        backgroundColor: background,
+        backgroundColor: colors.background,
         elevation: 0,
         title: Text(
           'Apps',
-          style: TextStyle(color: primaryGreen, fontFamily: 'monospace'),
+          style: TextStyle(color: colors.primaryText, fontFamily: 'monospace'),
         ),
         leading: IconButton(
-          icon: Icon(Icons.close, color: primaryGreen),
+          icon: Icon(Icons.close, color: colors.primaryText),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -126,7 +131,7 @@ class _HiddenAppListState extends State<HiddenAppList> {
                       child: Text(
                         'ALL APPS',
                         style: TextStyle(
-                          color: dimGreen,
+                          color: colors.dimText,
                           fontFamily: 'monospace',
                         ),
                       ),
@@ -170,9 +175,17 @@ class _HiddenAppListState extends State<HiddenAppList> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Text(
-              label,
-              style: TextStyle(color: primaryGreen, fontFamily: 'monospace'),
+            child: Builder(
+              builder: (context) {
+                final colors = Provider.of<ThemeProvider>(context).colors;
+                return Text(
+                  label,
+                  style: TextStyle(
+                    color: colors.primaryText,
+                    fontFamily: 'monospace',
+                  ),
+                );
+              },
             ),
           ),
         ),
