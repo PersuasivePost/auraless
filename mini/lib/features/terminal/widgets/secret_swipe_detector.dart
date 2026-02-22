@@ -37,7 +37,9 @@ class SecretSwipeDetectorState extends State<SecretSwipeDetector> {
   void _resetTimer() {
     _timeoutTimer?.cancel();
     _timeoutTimer = Timer(widget.timeout, () {
-      _count = 0;
+      setState(() {
+        _count = 0;
+      });
     });
   }
 
@@ -68,11 +70,21 @@ class SecretSwipeDetectorState extends State<SecretSwipeDetector> {
     final horizontalDominant = vx.abs() > vy.abs();
     final isRight = vx > 100; // require a minimum velocity to avoid tiny moves
 
+    // debug log
+    // ignore: avoid_print
+    print(
+      'SecretSwipeDetector.onPanEnd vx=$vx vy=$vy horizontalDominant=$horizontalDominant isRight=$isRight countBefore=$_count',
+    );
+
     if (horizontalDominant && isRight) {
-      _count++;
+      setState(() {
+        _count++;
+      });
       HapticFeedback.heavyImpact();
       _resetTimer();
       if (_count >= widget.requiredSwipes) {
+        // ignore: avoid_print
+        print('SecretSwipeDetector: unlocked (count=$_count)');
         widget.onSecretUnlocked();
         // reset after triggering
         setState(() {

@@ -18,6 +18,18 @@ class UsageStatsProvider extends ChangeNotifier {
   List<UsageEntry> get entries => _entries;
   bool get loading => _loading;
 
+  /// Returns the top [n] entries and an aggregated 'Other' entry if there are more.
+  List<UsageEntry> topWithOther({int n = 5}) {
+    if (_entries.isEmpty) return [];
+    final top = _entries.take(n).toList();
+    if (_entries.length > n) {
+      final rest = _entries.skip(n);
+      final sum = rest.fold<int>(0, (p, e) => p + e.totalTimeInForeground);
+      top.add(UsageEntry(packageName: 'Other', totalTimeInForeground: sum));
+    }
+    return top;
+  }
+
   Future<void> loadForDay(DateTime day) async {
     _loading = true;
     notifyListeners();

@@ -21,6 +21,21 @@ class HiveService {
     userCommandsBox = await Hive.openBox('userCommands');
     terminalHistoryBox = await Hive.openBox('terminalHistory');
     notificationsBox = await Hive.openBox('notifications');
+
+    // Ensure a small set of default aliases exist if none are defined.
+    try {
+      final current = getAliases();
+      if (current.isEmpty) {
+        final defaults = <String, String>{
+          'wa': 'whatsapp',
+          'ig': 'instagram',
+          'ytb': 'youtube',
+        };
+        await setAliases(defaults);
+      }
+    } catch (_) {
+      // if Hive isn't ready or an error occurs, we silently continue; defaults will be set next run
+    }
   }
 
   // Settings helpers

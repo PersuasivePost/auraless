@@ -50,6 +50,16 @@ class NativeChannelService {
     return res == true;
   }
 
+  Future<bool> openDialer(String number) async {
+    final res = await _appChannel.invokeMethod('openDialer', number);
+    return res == true;
+  }
+
+  Future<bool> openUrl(String url) async {
+    final res = await _appChannel.invokeMethod('openUrl', url);
+    return res == true;
+  }
+
   Future<Map<String, dynamic>> getSystemInfo() async {
     final Map<dynamic, dynamic> raw = await _sysChannel.invokeMethod(
       'getSystemInfo',
@@ -64,6 +74,21 @@ class NativeChannelService {
       await _grayChannel.invokeMethod('placeholder');
   Future<dynamic> contactsPlaceholder() async =>
       await _contactsChannel.invokeMethod('placeholder');
+
+  Future<List<Map<String, String>>> searchContacts(String query) async {
+    final List<dynamic> raw = await _contactsChannel.invokeMethod(
+      'searchContacts',
+      query,
+    );
+    return raw
+        .cast<Map<dynamic, dynamic>>()
+        .map(
+          (m) => Map<String, String>.from(
+            m.map((k, v) => MapEntry(k.toString(), v.toString())),
+          ),
+        )
+        .toList();
+  }
 
   // Usage stats
   Future<List<Map<String, dynamic>>> getUsageStats(

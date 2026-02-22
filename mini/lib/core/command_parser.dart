@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:auraless/core/native_channel_service.dart';
 import 'package:auraless/providers/terminal_history_provider.dart';
+import 'package:auraless/core/hive_service.dart';
 import 'package:auraless/screens/settings_screen.dart';
 import 'package:auraless/screens/setup_wizard.dart';
+import 'package:auraless/features/digital_wellbeing/providers/blocked_apps_provider.dart';
 // ...existing code...
 import 'package:auraless/screens/usage_stats_screen.dart';
 import 'package:auraless/providers/usage_stats_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class CommandParser {
   final BuildContext context;
   final NativeChannelService native;
   final TerminalHistoryProvider historyProvider;
 
-  final Map<String, String> _aliases = {};
+  // aliases are persisted in Hive; don't keep a separate in-memory source of truth
 
   CommandParser({
     required this.context,
@@ -39,17 +42,15 @@ class CommandParser {
           await _cmdOpen(args);
           break;
         case 'call':
-          _cmdPlaceholder('call', args.join(' '));
+          await _cmdCall(args);
           break;
         case 'search':
-          _cmdPlaceholder('search', args.join(' '));
+          await _cmdSearch(args);
           break;
         case 'ls':
           await _cmdListApps();
           break;
-        case 'top':
-          _cmdPlaceholder('top', 'Top used apps (placeholder)');
-          break;
+
         case 'stats':
           await _cmdStats(args);
           break;
@@ -72,7 +73,7 @@ class CommandParser {
           await _cmdGrayscale(args);
           break;
         case 'alias':
-          _cmdAlias(args);
+          await _cmdAlias(args);
           break;
         case 'notifications':
           await _cmdNotifications(args);
@@ -112,10 +113,10 @@ class CommandParser {
     final lines = <String>[
       'help - list commands',
       'open <app name or package> - launch app',
-      'call <contact> - placeholder',
-      'search <query> - placeholder',
+      'call <contact> - call a contact by name',
+      'search <query> - open a web search for the query',
       'ls - list installed apps',
-      'top - top used apps (placeholder)',
+      // removed 'top' command (use 'stats' instead)
       'stats - usage stats (placeholder)',
       'status - show system info',
       'lock <app> [minutes] - block app (minutes optional, not enforced in MVP)',
@@ -141,16 +142,80 @@ class CommandParser {
       );
       return;
     }
-    final query = args.join(' ');
+    // join args into a single query and expand aliases from Hive
+    var query = args.join(' ').trim();
+    try {
+      final aliases = HiveService.getAliases();
+      if (aliases.containsKey(query)) {
+        final val = aliases[query]!.trim();
+        // if alias stores a full command like "open com.example.app", extract the target
+        if (val.toLowerCase().startsWith('open ')) {
+          query = val.substring(5).trim();
+        } else {
+          query = val;
+        }
+      }
+    } catch (_) {
+      // ignore hive read errors and continue with original query
+    }
     // fetch installed apps
     final apps = await native.getInstalledApps();
-    // fuzzy match: name or package contains query
+    // matching strategy: prefer exact matches, then prefix matches, then substring matches
     final lower = query.toLowerCase();
-    final match = apps.firstWhere((a) {
-      final name = (a['name'] ?? '').toString().toLowerCase();
-      final pkg = (a['packageName'] ?? '').toString().toLowerCase();
-      return name.contains(lower) || pkg.contains(lower);
-    }, orElse: () => {});
+    Map<String, dynamic> match = {};
+
+    // helper to normalize fields
+    String nameOf(Map a) => (a['name'] ?? '').toString().toLowerCase();
+    String pkgOf(Map a) => (a['packageName'] ?? '').toString().toLowerCase();
+
+    // 1) exact name or exact package
+    for (var a in apps) {
+      if (nameOf(a) == lower || pkgOf(a) == lower) {
+        match = Map<String, dynamic>.from(a);
+        break;
+      }
+    }
+
+    // 2) exact package (with possible user passing full package)
+    if (match.isEmpty) {
+      for (var a in apps) {
+        if (pkgOf(a) == lower) {
+          match = Map<String, dynamic>.from(a);
+          break;
+        }
+      }
+    }
+
+    // 3) prefix matches on name or package
+    if (match.isEmpty) {
+      for (var a in apps) {
+        if (nameOf(a).startsWith(lower) || pkgOf(a).startsWith(lower)) {
+          match = Map<String, dynamic>.from(a);
+          break;
+        }
+      }
+    }
+
+    // 4) whole-word match in name (e.g., 'mess' should match 'Messages')
+    if (match.isEmpty) {
+      for (var a in apps) {
+        final words = nameOf(a).split(RegExp(r"\s+|[._-]"));
+        if (words.contains(lower)) {
+          match = Map<String, dynamic>.from(a);
+          break;
+        }
+      }
+    }
+
+    // 5) fallback: substring match
+    if (match.isEmpty) {
+      for (var a in apps) {
+        if (nameOf(a).contains(lower) || pkgOf(a).contains(lower)) {
+          match = Map<String, dynamic>.from(a);
+          break;
+        }
+      }
+    }
     if (match.isEmpty) {
       historyProvider.addError(
         'No app matching "$query". Usage: open <app name or package>. Example: open instagram',
@@ -174,9 +239,76 @@ class CommandParser {
     }
   }
 
-  void _cmdPlaceholder(String name, String message) {
-    historyProvider.addOutput('$name: $message');
+  Future<void> _cmdCall(List<String> args) async {
+    if (args.isEmpty) {
+      historyProvider.addError(
+        'Missing contact name. Usage: call <name>. Example: call Alice',
+      );
+      return;
+    }
+    final query = args.join(' ').trim();
+
+    // ensure permission
+    var status = await Permission.contacts.status;
+    if (!status.isGranted) {
+      final req = await Permission.contacts.request();
+      if (!req.isGranted) {
+        historyProvider.addError(
+          'Contacts permission denied. Cannot perform call.',
+        );
+        return;
+      }
+    }
+
+    try {
+      final results = await native.searchContacts(query);
+      if (results.isEmpty) {
+        historyProvider.addError('No contact found matching "$query"');
+        return;
+      }
+      final first = results.first;
+      final number = first['number']?.toString() ?? '';
+      final name = first['name'] ?? number;
+      if (number.isEmpty) {
+        historyProvider.addError(
+          'Contact found but no phone number available for $name',
+        );
+        return;
+      }
+      final ok = await native.openDialer(number);
+      if (ok) {
+        historyProvider.addOutput('Opened dialer for $name ($number)');
+      } else {
+        historyProvider.addError('Failed to open dialer for $number');
+      }
+    } catch (e) {
+      historyProvider.addError('Failed to search contacts: ${e.toString()}');
+    }
   }
+
+  Future<void> _cmdSearch(List<String> args) async {
+    if (args.isEmpty) {
+      historyProvider.addError(
+        'Missing query. Usage: search <query>. Example: search photos',
+      );
+      return;
+    }
+    final query = args.join(' ');
+    final encoded = Uri.encodeQueryComponent(query);
+    final url = 'https://www.google.com/search?q=$encoded';
+    try {
+      final ok = await native.openUrl(url);
+      if (ok) {
+        historyProvider.addOutput('Opened search for: $query');
+      } else {
+        historyProvider.addError('Failed to open browser for search');
+      }
+    } catch (e) {
+      historyProvider.addError('Search failed: ${e.toString()}');
+    }
+  }
+
+  // ... no-op placeholder removed; commands now have concrete implementations
 
   Future<void> _cmdListApps() async {
     final apps = await native.getInstalledApps();
@@ -209,13 +341,14 @@ class CommandParser {
 
   // ...previous placeholder removed; see async _cmdLock implementation below
 
-  void _cmdAlias(List<String> args) {
+  Future<void> _cmdAlias(List<String> args) async {
     if (args.isEmpty) {
       // list
-      if (_aliases.isEmpty) {
+      final aliases = HiveService.getAliases();
+      if (aliases.isEmpty) {
         historyProvider.addOutput('No aliases defined');
       } else {
-        _aliases.forEach((k, v) => historyProvider.addOutput('$k => $v'));
+        aliases.forEach((k, v) => historyProvider.addOutput('$k => $v'));
       }
       return;
     }
@@ -223,13 +356,13 @@ class CommandParser {
     if (sub == 'add' && args.length >= 3) {
       final name = args[1];
       final command = args.sublist(2).join(' ');
-      _aliases[name] = command;
+      await HiveService.putAlias(name, command);
       historyProvider.addOutput('Alias added: $name => $command');
       return;
     }
     if (sub == 'remove' && args.length >= 2) {
       final name = args[1];
-      _aliases.remove(name);
+      await HiveService.removeAlias(name);
       historyProvider.addOutput('Alias removed: $name');
       return;
     }
@@ -540,16 +673,20 @@ class CommandParser {
       return;
     }
     final mode = args[0].toLowerCase();
+    // create provider instance to perform blocking operations
+    final bap = BlockedAppsProvider(native);
     if (mode == 'on') {
-      // Placeholder: enable focus mode (actual blocking will be implemented later)
+      await bap.enableFocusMode();
       historyProvider.addOutput(
-        'Focus mode activated. All non-essential apps blocked.',
+        'Focus mode activated. Non-essential apps blocked.',
       );
       return;
     }
     if (mode == 'off') {
-      // Placeholder: disable focus mode
-      historyProvider.addOutput('Focus mode disabled.');
+      await bap.disableFocusMode();
+      historyProvider.addOutput(
+        'Focus mode disabled. Restored previous blocked apps.',
+      );
       return;
     }
     historyProvider.addError(
@@ -598,15 +735,24 @@ class CommandParser {
       return;
     }
 
-    int i = 0;
-    for (final e in provider.entries) {
-      i++;
+    // Show top 5 + aggregated Other
+    final list = provider.topWithOther(n: 5);
+    final apps = await native.getInstalledApps();
+    int idx = 0;
+    for (final e in list) {
+      if (e.packageName == 'Other') {
+        final mins = (e.totalTimeInForeground / 60000).round();
+        final label = mins >= 60
+            ? '${(mins / 60).toStringAsFixed(1)}h'
+            : '${mins}m';
+        historyProvider.addOutput('Other – $label');
+        continue;
+      }
+      idx++;
       final mins = (e.totalTimeInForeground / 60000).round();
       final label = mins >= 60
           ? '${(mins / 60).toStringAsFixed(1)}h'
           : '${mins}m';
-      // try to resolve app name from installed apps
-      final apps = await native.getInstalledApps();
       final found = apps.firstWhere(
         (a) => (a['packageName'] ?? '') == e.packageName,
         orElse: () => {},
@@ -614,8 +760,7 @@ class CommandParser {
       final name = found.isEmpty
           ? e.packageName
           : (found['name'] ?? e.packageName);
-      historyProvider.addOutput('$i. $name – $label');
-      if (i >= 50) break; // safety
+      historyProvider.addOutput('$idx. $name – $label');
     }
   }
 

@@ -110,6 +110,38 @@ class MainActivity : FlutterActivity() {
 						result.error("INVALID_ARGS", "packageName missing", null)
 					}
 				}
+				"openDialer" -> {
+					val number = call.arguments as? String
+					if (number != null && number.isNotEmpty()) {
+						try {
+							val uri = android.net.Uri.parse("tel:" + number)
+							val i = Intent(Intent.ACTION_DIAL, uri)
+							i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+							startActivity(i)
+							result.success(true)
+						} catch (e: Exception) {
+							result.error("ERROR", e.localizedMessage, null)
+						}
+					} else {
+						result.error("INVALID_ARGS", "number missing", null)
+					}
+				}
+				"openUrl" -> {
+					val url = call.arguments as? String
+					if (url != null && url.isNotEmpty()) {
+						try {
+							val uri = android.net.Uri.parse(url)
+							val i = Intent(Intent.ACTION_VIEW, uri)
+							i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+							startActivity(i)
+							result.success(true)
+						} catch (e: Exception) {
+							result.error("ERROR", e.localizedMessage, null)
+						}
+					} else {
+						result.error("INVALID_ARGS", "url missing", null)
+					}
+				}
 				else -> result.notImplemented()
 			}
 		}
@@ -235,7 +267,41 @@ class MainActivity : FlutterActivity() {
 				else -> result.notImplemented()
 			}
 		}
-		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CONTACTS_CHANNEL).setMethodCallHandler { _, r -> r.notImplemented() }
+		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CONTACTS_CHANNEL).setMethodCallHandler { call, result ->
+			when (call.method) {
+				"searchContacts" -> {
+					try {
+						val query = call.arguments as? String ?: ""
+						val out = mutableListOf<Map<String, String>>()
+						if (query.isNotEmpty()) {
+							val uri = android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+							val projection = arrayOf(
+								android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+								android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
+							)
+							val selection = "${android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ?"
+							val selectionArgs = arrayOf("%$query%")
+							val cursor = contentResolver.query(uri, projection, selection, selectionArgs, null)
+							cursor?.use {
+								val nameIdx = it.getColumnIndex(android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+								val numIdx = it.getColumnIndex(android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER)
+								while (it.moveToNext()) {
+									val name = if (nameIdx >= 0) it.getString(nameIdx) ?: "" else ""
+									val number = if (numIdx >= 0) it.getString(numIdx) ?: "" else ""
+									if (number.isNotEmpty()) {
+										out.add(mapOf("name" to name, "number" to number))
+									}
+								}
+							}
+						}
+						result.success(out)
+					} catch (e: Exception) {
+						result.error("ERROR", e.localizedMessage, null)
+					}
+				}
+				else -> result.notImplemented()
+			}
+		}
 
 		// Blocked apps channel - uses SharedPreferences to maintain comma-separated list
 		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BLOCKED_CHANNEL).setMethodCallHandler { call, result ->

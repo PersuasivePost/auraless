@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 import 'package:auraless/constants/colors.dart';
 import 'package:auraless/features/terminal/widgets/system_info_panel.dart';
 import 'package:auraless/features/terminal/widgets/terminal_input.dart';
+import 'package:auraless/features/terminal/widgets/secret_swipe_detector.dart';
 import 'package:auraless/core/command_parser.dart';
 import 'package:auraless/core/native_channel_service.dart';
 import 'package:auraless/providers/terminal_history_provider.dart';
@@ -163,94 +164,96 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
     return Scaffold(
       backgroundColor: background,
       body: SafeArea(
-        child: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          onLongPress: () {
-            // Navigate to settings on long press anywhere on the terminal
+        child: SecretSwipeDetector(
+          onSecretUnlocked: () {
             Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
           },
-          behavior: HitTestBehavior.opaque,
-          child: Column(
-            children: [
-              // System info panel
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: SystemInfoPanel(),
-              ),
-              const Divider(color: Colors.transparent, height: 4),
+          child: GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            onLongPress: () {
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: SystemInfoPanel(),
+                ),
+                const Divider(color: Colors.transparent, height: 4),
 
-              // History
-              Expanded(
-                child: Consumer<TerminalHistoryProvider>(
-                  builder: (context, history, _) {
-                    final entries = history.entries;
-                    return ListView.builder(
-                      controller: _scrollController,
-                      reverse: true,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      itemCount: entries.length,
-                      itemBuilder: (context, index) {
-                        // when reverse is true, show from the end
-                        final entry = entries[entries.length - 1 - index];
-                        Color color;
-                        switch (entry.type) {
-                          case 'command':
-                            color = primaryGreen;
-                            break;
-                          case 'error':
-                            color = errorRed;
-                            break;
-                          default:
-                            color = outputGreen;
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Text(
-                            entry.text,
-                            style: TextStyle(
-                              color: color,
-                              fontFamily: 'monospace',
-                              fontSize: 13,
+                Expanded(
+                  child: Consumer<TerminalHistoryProvider>(
+                    builder: (context, history, _) {
+                      final entries = history.entries;
+                      return ListView.builder(
+                        controller: _scrollController,
+                        reverse: true,
+                        physics: const ClampingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        itemCount: entries.length,
+                        itemBuilder: (context, index) {
+                          final entry = entries[entries.length - 1 - index];
+                          Color color;
+                          switch (entry.type) {
+                            case 'command':
+                              color = primaryGreen;
+                              break;
+                            case 'error':
+                              color = errorRed;
+                              break;
+                            default:
+                              color = outputGreen;
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(
+                              entry.text,
+                              style: TextStyle(
+                                color: color,
+                                fontFamily: 'monospace',
+                                fontSize: 13,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    );
-                  },
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
-              ),
 
-              // Input anchored at bottom
-              Container(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                color: background,
-                child: TerminalInput(
-                  controller: _inputController,
-                  onShowHistory: _showRecentCommands,
-                  onCommandSubmitted: (cmd) async {
-                    final provider = Provider.of<TerminalHistoryProvider>(
-                      context,
-                      listen: false,
-                    );
-                    provider.addCommand(cmd);
+                Container(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                  color: background,
+                  child: TerminalInput(
+                    controller: _inputController,
+                    onShowHistory: _showRecentCommands,
+                    onCommandSubmitted: (cmd) async {
+                      final provider = Provider.of<TerminalHistoryProvider>(
+                        context,
+                        listen: false,
+                      );
+                      provider.addCommand(cmd);
 
-                    // Execute the command using CommandParser so commands run real logic
-                    final native = NativeChannelService();
-                    final parser = CommandParser(
-                      context: context,
-                      native: native,
-                      historyProvider: provider,
-                    );
-                    await parser.execute(cmd);
-                  },
+                      final native = NativeChannelService();
+                      final parser = CommandParser(
+                        context: context,
+                        native: native,
+                        historyProvider: provider,
+                      );
+                      await parser.execute(cmd);
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
