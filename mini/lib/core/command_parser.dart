@@ -467,7 +467,7 @@ class CommandParser {
       // Build date can be hardcoded or injected via build; using a conservative hardcoded value placeholder.
       const buildDate = '2026-02-21';
       const repo = 'https://github.com/PersuasivePost/minimalistic-mobile';
-      const contributors = 'GitHub Copilot';
+      const contributors = 'PersuasivePost';
 
       historyProvider.addOutput('');
       historyProvider.addOutput('=== About ===');
