@@ -11,6 +11,7 @@ import 'package:auraless/core/command_parser.dart';
 import 'package:auraless/core/native_channel_service.dart';
 import 'package:auraless/providers/terminal_history_provider.dart';
 import 'package:auraless/screens/settings_screen.dart';
+import 'package:auraless/providers/system_info_provider.dart';
 
 class TerminalHomeScreen extends StatefulWidget {
   const TerminalHomeScreen({super.key});
@@ -111,6 +112,11 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
       _listening = true;
     }
     // No startup welcome message is shown on terminal by design.
+    // Ensure system info periodic refresh is started when terminal is visible
+    try {
+      final sip = Provider.of<SystemInfoProvider>(context, listen: false);
+      sip.startPeriodic();
+    } catch (_) {}
   }
 
   void _onHistoryUpdated() {
@@ -137,6 +143,11 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
         ).removeListener(_onHistoryUpdated);
       } catch (_) {}
     }
+    // stop system info periodic updates when leaving the terminal
+    try {
+      final sip = Provider.of<SystemInfoProvider>(context, listen: false);
+      sip.stopPeriodic();
+    } catch (_) {}
     _scrollController.dispose();
     super.dispose();
   }

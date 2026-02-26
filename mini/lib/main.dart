@@ -11,6 +11,7 @@ import 'providers/app_list_provider.dart';
 import 'providers/contacts_provider.dart';
 import 'providers/terminal_history_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/system_info_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,6 +75,7 @@ class _LauncherAppState extends State<LauncherApp> with WidgetsBindingObserver {
         ChangeNotifierProvider(create: (_) => AppsProvider(native)),
         ChangeNotifierProvider(create: (_) => AppListProvider(native)),
         ChangeNotifierProvider(create: (_) => ContactsProvider(native)),
+        ChangeNotifierProvider(create: (_) => SystemInfoProvider(native)),
         ChangeNotifierProvider(create: (_) => TerminalHistoryProvider()),
       ],
       child: Consumer<ThemeProvider>(
