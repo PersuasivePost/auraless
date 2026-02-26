@@ -10,6 +10,8 @@ import 'package:auraless/screens/usage_stats_screen.dart';
 import 'package:auraless/providers/usage_stats_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
+import 'package:auraless/providers/app_list_provider.dart';
 
 class CommandParser {
   final BuildContext context;
@@ -161,8 +163,22 @@ class CommandParser {
     } catch (_) {
       // ignore hive read errors and continue with original query
     }
-    // fetch installed apps
-    final apps = await native.getInstalledApps();
+    // consult cached apps first to avoid calling native channel synchronously
+    List<Map<String, dynamic>> apps = [];
+    try {
+      final appProvider = Provider.of<AppListProvider>(context, listen: false);
+      apps = appProvider.apps;
+      if (apps.isEmpty) Future.microtask(() => appProvider.refreshAppList());
+    } catch (_) {
+      // provider not available; fall back to native
+    }
+    if (apps.isEmpty) {
+      try {
+        apps = await native.getInstalledApps();
+      } catch (_) {
+        apps = [];
+      }
+    }
     // matching strategy: prefer exact matches, then prefix matches, then substring matches
     final lower = query.toLowerCase();
     Map<String, dynamic> match = {};

@@ -7,6 +7,8 @@ import 'providers/lifecycle_provider.dart';
 import 'core/native_channel_service.dart';
 import 'providers/usage_stats_provider.dart';
 import 'providers/apps_provider.dart';
+import 'providers/app_list_provider.dart';
+import 'providers/contacts_provider.dart';
 import 'providers/terminal_history_provider.dart';
 import 'providers/theme_provider.dart';
 
@@ -70,6 +72,8 @@ class _LauncherAppState extends State<LauncherApp> with WidgetsBindingObserver {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => UsageStatsProvider(native)),
         ChangeNotifierProvider(create: (_) => AppsProvider(native)),
+        ChangeNotifierProvider(create: (_) => AppListProvider(native)),
+        ChangeNotifierProvider(create: (_) => ContactsProvider(native)),
         ChangeNotifierProvider(create: (_) => TerminalHistoryProvider()),
       ],
       child: Consumer<ThemeProvider>(
