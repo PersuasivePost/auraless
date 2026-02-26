@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 // Hive import removed — no startup welcome message or settings access needed here.
@@ -26,6 +28,26 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
   final TextEditingController _inputController = TextEditingController();
   OverlayEntry? _overlayEntry;
 
+  Future<void> _submitCommandFromPopup(
+    BuildContext screenContext,
+    String cmd,
+  ) async {
+    final provider = Provider.of<TerminalHistoryProvider>(
+      screenContext,
+      listen: false,
+    );
+    provider.addCommand(cmd);
+
+    final native = NativeChannelService();
+    final parser = CommandParser(
+      context: screenContext,
+      native: native,
+      historyProvider: provider,
+    );
+    // fire and forget - UI will continue
+    Future.microtask(() => parser.execute(cmd));
+  }
+
   void _showRecentCommands() {
     if (_overlayEntry != null) return;
     final provider = Provider.of<TerminalHistoryProvider>(
@@ -35,10 +57,12 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
     final recent = provider.commandHistory.reversed.take(5).toList();
     final overlay = Overlay.of(context);
 
+    final screenContext = context;
     _overlayEntry = OverlayEntry(
       builder: (context) {
         return Positioned.fill(
           child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
             onTap: _removeOverlay,
             child: Container(
               color: Colors.transparent,
@@ -60,13 +84,16 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: recent.map((c) {
-                            return InkWell(
+                            return GestureDetector(
+                              behavior: HitTestBehavior.opaque,
                               onTap: () {
+                                // Set input text, submit command, then remove overlay
                                 _inputController.text = c;
                                 _inputController.selection =
                                     TextSelection.fromPosition(
                                       TextPosition(offset: c.length),
                                     );
+                                _submitCommandFromPopup(screenContext, c);
                                 _removeOverlay();
                               },
                               child: Padding(

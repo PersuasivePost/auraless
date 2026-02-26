@@ -4,11 +4,13 @@ import 'colors.dart';
 class RecentCommandsPopup extends StatelessWidget {
   final List<String> commands;
   final VoidCallback? onDismiss;
+  final void Function(String)? onCommandSelected;
 
   const RecentCommandsPopup({
     super.key,
     required this.commands,
     this.onDismiss,
+    this.onCommandSelected,
   });
 
   @override
@@ -49,20 +51,27 @@ class RecentCommandsPopup extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ...commands
-                      .take(5)
-                      .map(
-                        (c) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Text(
-                            c,
-                            style: TextStyle(
-                              color: kOutputGreen,
-                              fontFamily: 'monospace',
-                            ),
+                  ...commands.take(5).map((c) {
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        // notify parent and then dismiss
+                        if (onCommandSelected != null) onCommandSelected!(c);
+                        Navigator.of(context).pop();
+                        if (onDismiss != null) onDismiss!();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Text(
+                          c,
+                          style: TextStyle(
+                            color: kOutputGreen,
+                            fontFamily: 'monospace',
                           ),
                         ),
                       ),
+                    );
+                  }),
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerRight,
