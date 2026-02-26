@@ -232,6 +232,9 @@ class _TerminalHomeScreenState extends State<TerminalHomeScreen> {
                             case 'error':
                               color = colors.error;
                               break;
+                            case 'warning':
+                              color = warningYellow;
+                              break;
                             default:
                               color = colors.outputText;
                           }

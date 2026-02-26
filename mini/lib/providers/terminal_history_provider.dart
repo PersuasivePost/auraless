@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class HistoryEntry {
-  final String type; // 'command' | 'output' | 'error'
+  final String type; // 'command' | 'output' | 'error' | 'warning'
   final String text;
   final DateTime timestamp;
 
@@ -24,6 +24,11 @@ class TerminalHistoryProvider extends ChangeNotifier {
 
   void addOutput(String out) {
     entries.add(HistoryEntry(type: 'output', text: out));
+    notifyListeners();
+  }
+
+  void addWarning(String w) {
+    entries.add(HistoryEntry(type: 'warning', text: w));
     notifyListeners();
   }
 

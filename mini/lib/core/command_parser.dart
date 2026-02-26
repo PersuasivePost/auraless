@@ -12,6 +12,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:auraless/providers/app_list_provider.dart';
+import 'package:auraless/providers/contacts_provider.dart';
+import 'package:auraless/core/fuzzy.dart';
 
 class CommandParser {
   final BuildContext context;
@@ -102,6 +104,40 @@ class CommandParser {
           historyProvider.clear();
           break;
         default:
+          // Try fuzzy matching against known commands
+          final known = [
+            'help',
+            'open',
+            'call',
+            'search',
+            'ls',
+            'stats',
+            'usage',
+            'status',
+            'lock',
+            'unlock',
+            'focus',
+            'grayscale',
+            'alias',
+            'notifications',
+            'essential',
+            'settings',
+            'battery',
+            'about',
+            'battery_optimization',
+            'setup',
+            'clear',
+          ];
+          final suggestion = findBestMatch(cmd, known, threshold: 2);
+          if (suggestion != null) {
+            historyProvider.addWarning(
+              "Did you mean '$suggestion'? Executing with correction...",
+            );
+            // re-invoke using corrected command name and same args
+            final newInput = ([suggestion] + args).join(' ');
+            await execute(newInput);
+            return;
+          }
           historyProvider.addError(
             'Unknown command: $cmd. Usage: help. Example: help',
           );
@@ -236,10 +272,31 @@ class CommandParser {
       }
     }
     if (match.isEmpty) {
-      historyProvider.addError(
-        'No app matching "$query". Usage: open <app name or package>. Example: open instagram',
-      );
-      return;
+      // try fuzzy match on app names
+      try {
+        final names = apps
+            .map((a) => (a['name'] ?? '').toString())
+            .where((s) => s.isNotEmpty)
+            .toList();
+        final best = findBestMatch(query, names, threshold: 3);
+        if (best != null) {
+          // find the app map for best
+          for (var a in apps) {
+            if ((a['name'] ?? '').toString().toLowerCase() ==
+                best.toLowerCase()) {
+              match = Map<String, dynamic>.from(a);
+              historyProvider.addWarning('Opening closest match: ${a['name']}');
+              break;
+            }
+          }
+        }
+      } catch (_) {}
+      if (match.isEmpty) {
+        historyProvider.addError(
+          'No app matching "$query". Usage: open <app name or package>. Example: open instagram',
+        );
+        return;
+      }
     }
     final pkgName = match['packageName'] as String?;
     if (pkgName == null) {
@@ -335,7 +392,14 @@ class CommandParser {
       // ignore hive errors and fall back to contact search
     }
 
-    // Not an alias: fall back to native contact search (requires permission)
+    // Not an alias: try to grab contacts provider (synchronously) then fall back to native contact search (requires permission)
+    ContactsProvider? contactProvider;
+    try {
+      contactProvider = Provider.of<ContactsProvider>(context, listen: false);
+    } catch (_) {
+      contactProvider = null;
+    }
+
     var status = await Permission.contacts.status;
     if (!status.isGranted) {
       final req = await Permission.contacts.request();
@@ -348,6 +412,46 @@ class CommandParser {
     }
 
     try {
+      // Try cached contacts provider first for faster fuzzy matching
+      try {
+        if (contactProvider != null) {
+          final cached = contactProvider.contacts
+              .map((m) => (m['name'] ?? '').toString())
+              .where((s) => s.isNotEmpty)
+              .toList();
+          final best = findBestMatch(query, cached, threshold: 3);
+          if (best != null) {
+            Map<String, dynamic>? entry;
+            for (final m in contactProvider.contacts) {
+              try {
+                if (((m['name'] ?? '').toString().toLowerCase() ==
+                    best.toLowerCase())) {
+                  entry = Map<String, dynamic>.from(m);
+                  break;
+                }
+              } catch (_) {}
+            }
+            if (entry != null) {
+              final number = (entry['number'] ?? '').toString();
+              final sanitized = number.replaceAll(RegExp(r'[^0-9+]'), '');
+              if (sanitized.replaceAll(RegExp(r'[^0-9]'), '').isNotEmpty) {
+                final ok = await native.openDialer(sanitized);
+                if (ok) {
+                  historyProvider.addOutput(
+                    'Opened dialer for ${entry['name']} ($sanitized)',
+                  );
+                } else {
+                  historyProvider.addError(
+                    'Failed to open dialer for $sanitized',
+                  );
+                }
+                return;
+              }
+            }
+          }
+        }
+      } catch (_) {}
+
       final results = await native.searchContacts(query);
       if (results.isEmpty) {
         historyProvider.addError('No contact found matching "$query"');

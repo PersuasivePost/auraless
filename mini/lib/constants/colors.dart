@@ -24,6 +24,8 @@ class AppColors {
     dimText: Color(0xFF008800),
     accent: Color(0xFF00AA00),
     error: Color(0xFFFF4444),
+    // add warning color
+    // (this field reuses 'accent' in the constructor but we add color constant below)
   );
 
   static const light = AppColors(
@@ -43,3 +45,4 @@ final Color outputGreen = AppColors.dark.outputText;
 final Color dimGreen = AppColors.dark.dimText;
 final Color accentGreen = AppColors.dark.accent;
 final Color errorRed = AppColors.dark.error;
+final Color warningYellow = const Color(0xFFFFC107); // amber
